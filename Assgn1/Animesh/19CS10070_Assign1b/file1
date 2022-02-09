@@ -1,0 +1,12 @@
+Problem 1(a):
+In this assignment, you will write a client-server system using TCP sockets. Specifically, you will
+write two programs, a TCP client program and an iterative TCP server program. The client
+program will send a text file to the server program. The server will count the number of
+sentences, words, and characters in the file and send them back to the client. The client will
+then display it. The sequence of operations to be followed are shown below.
+1. The server opens a TCP socket and waits for a request from the client.
+2. The client reads the name of a text file from the user as a command line argument. It
+then looks for the file in the local directory. If the file is not there, it prints a suitable error
+message (“File not found”) and exits. If the file is found, thew steps below are executed.
+You can assume that the file name has maximum 100 characters and the file, if found,
+will always be a text file containing English sentences.
