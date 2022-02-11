@@ -27,6 +27,7 @@ const int FAIL_CODE = 500;
 const int FAIL_COMAND_ORDER = 600;
 const int MIN_PORT = 20000;
 const int MAX_PORT = 65535;
+const int CHUNK_SIZE = 64;
 
 typedef struct
 {
@@ -191,8 +192,128 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         close(CLIENT_STATUS->sock);
         exit(0);
     }
-    // other commands 
-    
+    // other commands
+    if (!strcmp(user_cmd, CMD_LS))
+    {
+        send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+        char file_buff[100];
+        int packet_size = 0;
+        int last_null = 0;
+        int file_done = 0;
+        while ((packet_size = recv(CLIENT_STATUS->sock, file_buff, 100, 0)) > 0)
+        {
+            for (int i = 0; i < packet_size; i++)
+            {
+                if (file_buff[i] != '\0')
+                {
+                    printf("%c", file_buff[i]);
+                    last_null = 0;
+                }
+                else
+                {
+                    printf("\n");
+                    if (last_null)
+                    {
+                        file_done = 1;
+                        break;
+                    }
+                    last_null = 1;
+                }
+            }
+            if (file_done)
+            {
+                break;
+            }
+        }
+        printf("\n");
+        return;
+    }
+
+    if (!strcmp(user_cmd, CMD_GET))
+    {
+        int local_fd;
+        if ((local_fd = open(cmd_and_args[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+        {
+            printf(" no permission to create local file\n");
+            close(local_fd);
+            return;
+        }
+        send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+        char serv_out[4] = {0};
+        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        {
+            int pack_over = 0;
+            char type_header[2];
+            uint16_t pack_sz;
+            char recv_buffer[100];
+            do
+            {
+                memset(type_header, 0, sizeof(type_header));
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
+                recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
+                recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
+                pack_sz = ntohs(pack_sz);
+                write(local_fd, recv_buffer, pack_sz);
+                if (type_header[0] == 'L')
+                    pack_over = 1;
+            } while (!pack_over);
+        }
+        else if (!strcmp(serv_out, itoa(FAIL_CODE)))
+        {
+            printf("Error in get \n");
+        }
+        else
+        {
+            printf("invalid command order\n");
+        }
+        close(local_fd);
+        return;
+    }
+
+    if (!strcmp(user_cmd, CMD_PUT))
+    {
+        int local_fd;
+        if ((local_fd = open(cmd_and_args[1], O_RDONLY)) < 0)
+        {
+            printf("cant read local file, does not exist\n");
+            close(local_fd);
+            return;
+        }
+        send(CLIENT_STATUS, raw_cmd, strlen(raw_cmd) + 1, 0);
+        char serv_out[4] = {0};
+        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        {
+            char send_buff[100] = {0};
+            int read_len = 0;
+            while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
+            {
+                if (read_len < CHUNK_SIZE)
+                {
+                    send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
+                }
+                else
+                {
+                    send(CLIENT_STATUS->sock, "M", sizeof("M"), 0);
+                }
+                uint16_t short_size = htos(read_len);
+                send(CLIENT_STATUS->sock, short_size, sizeof(short_size), 0);
+                send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+            }
+        }
+        else if (!strcmp(serv_out, itoa(FAIL_CODE)))
+        {
+            printf("Error in put \n");
+        }
+        else
+        {
+            printf("invalid command order\n");
+        }
+        close(local_fd);
+        return;
+    }
     printf("Enter a valid command\n");
 }
 int main()
