@@ -6,6 +6,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <dirent.h>
+
 const int PORT = 42424;
 const char *CMD_OPEN = "open";
 const char *CMD_user = "user";
@@ -22,6 +24,13 @@ const char *CMD_QUIT = "quit";
 const int SUCC_CODE = 200;
 const int FAIL_CODE = 500;
 const int FAIL_COMAND_ORDER = 600;
+typedef struct
+{
+    int user_done;
+    int pass_done;
+    int active_user;
+    int sockfd;
+} CLIENT_STATE;
 char **parse_input(char *user_input, int *num_args)
 {
     int size = 1;
@@ -44,7 +53,79 @@ char **parse_input(char *user_input, int *num_args)
     } while (pch && i < size);
     return ret_string;
 }
+void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_info[4][25])
+{
+    int num_args = 0;
+    char **user_cmd = parse_input(recv_buffer, &num_args);
+    if (!strcmp(user_cmd[0], CMD_user))
+    {
+        if (!strcmp(login_info[0], user_cmd[1]))
+        {
+            client_state->user_done = 1;
+            client_state->active_user = 0;
+            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            return;
+        }
+        else if (!strcmp(login_info[2], user_cmd[1]))
+        {
+            client_state->user_done = 1;
+            client_state->active_user = 1;
+            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            return;
+        }
+        else
+        {
+            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+            return;
+        }
+    }
+    if (!strcmp(user_cmd[0], CMD_PASS))
+    {
+        if (client_state->user_done == 0)
+        {
+            send(client_state->sockfd, itoa(FAIL_COMAND_ORDER), sizeof(itoa(FAIL_COMAND_ORDER)), 0);
+            return;
+        }
+        int psidx = 1;
+        if (client_state->active_user)
+        {
+            psidx = 3;
+        }
+        if (!strcmp(user_cmd[1], login_info[psidx]))
+        {
 
+            client_state->pass_done = 1;
+            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            return;
+        }
+        else
+        {
+            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+            return;
+        }
+    }
+    if (!strcmp(user_cmd[0], CMD_QUIT))
+    {
+        close(client_state->sockfd);
+        exit(0);
+    }
+    if (!strcmp(user_cmd[0], CMD_CD))
+    {
+        if (chdir(user_cmd[1]))
+        {
+            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+        }
+        else
+        {
+            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+        }
+        return;
+    }
+    if (!strcmp(user_cmd[0], CMD_LS))
+    {
+    }
+    printf("INVALD COMMAND\n");
+}
 int main()
 {
     int server_fd, sock, client_len;
@@ -88,9 +169,11 @@ int main()
         {
             close(server_fd);
 
-            int user_done = 0;
-            int pass_done = 0;
-            int acc
+            CLIENT_STATE present_client_state;
+            present_client_state.active_user = -1;
+            present_client_state.pass_done = 0;
+            present_client_state.user_done = 0;
+            present_client_state.sockfd = sock;
             char login_info[4][25] = {0}; // 0,1 store username and pswd for u1 and 2,3 store it for u2
             char login_info_buffer[100];
             int login_fd;
@@ -113,28 +196,14 @@ int main()
                 login_idx++;
             } while (pch && login_idx < 4);
             char recv_buffer[100] = {0};
-            while (1)
+            while (1) // handle commands
             {
-                rev(sock, recv_buffer, 100, 0);
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                int sz = rev(sock, recv_buffer, 100, 0);
+                recv_buffer[sz] = '\0';
                 printf("%s\n", recv_buffer);
-                int num_args = 0;
-                char **user_cmd = parse_input(recv_buffer, &num_args);
-                if (strcmp(user_cmd[0], CMD_user) || num_args < 1)
-                {
-                    send(sock, itoa(FAIL_COMAND_ORDER), sizeof(itoa(FAIL_COMAND_ORDER)), 0);
-                    continue;
-                }
-                if (!strcmp(login_info[0], user_cmd[1]))
-                {
-
-                }
-                else if(!strcmp(login_info[2], user_cmd[1]))
-                {
-
-                }
-        
+                command_handler(recv_buffer, &present_client_state, login_info);
             }
-
             printf("closing socket\n");
             close(sock);
             exit(0);
