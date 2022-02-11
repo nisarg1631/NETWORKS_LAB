@@ -307,7 +307,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
         if (!strcmp(serv_out, SUCC_CODE))
         {
-            int L_sent=0;
+            int L_sent = 0;
             char send_buff[200] = {0};
             int read_len = 0;
             while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
@@ -315,7 +315,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 if (read_len < CHUNK_SIZE)
                 {
                     send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                    L_sent=1;
+                    L_sent = 1;
                 }
                 else
                 {
@@ -346,7 +346,110 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         return;
     }
 
-    if(!strcmp)
+    if (!strcmp(user_cmd, CMD_MGET))
+    {
+        for (int i = 0; i < num_args; i++)
+        {
+            char ncmd[200] = "get ";
+            strcat(ncmd, cmd_and_args[i + 1]);
+            strcat(ncmd, " ");
+            strcat(ncmd, cmd_and_args[i + 1]);
+            int local_fd;
+            if ((local_fd = open(cmd_and_args[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+            {
+                printf(" no permission to create local file\n");
+                close(local_fd);
+                return;
+            }
+            send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+            char serv_out[4] = {0};
+            recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+            if (!strcmp(serv_out, SUCC_CODE))
+            {
+                char type_header[2] = {0};
+                uint16_t pack_sz;
+                char recv_buffer[200];
+                recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
+                while (type_header[0] == 'M')
+                {
+                    recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
+                    pack_sz = ntohs(pack_sz);
+                    recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
+                    write(local_fd, recv_buffer, pack_sz);
+                    recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
+                }
+                recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
+                pack_sz = ntohs(pack_sz);
+                recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
+                write(local_fd, recv_buffer, pack_sz);
+                close(local_fd);
+            }
+            else
+            {
+                close(local_fd);
+                printf("Error in mget \n");
+                break;
+                return;
+            }
+        }
+        return;
+    }
+    if (!strcmp(user_cmd, CMD_MPUT))
+    {
+        for (int i = 0; i < num_args; i++)
+        {
+            char ncmd[200] = "put ";
+            strcat(ncmd, cmd_and_args[i + 1]);
+            strcat(ncmd, " ");
+            strcat(ncmd, cmd_and_args[i + 1]);
+            int local_fd;
+            if ((local_fd = open(cmd_and_args[1], O_RDONLY)) < 0)
+            {
+                printf("cant read local file, does not exist\n");
+                close(local_fd);
+                return;
+            }
+            send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+            char serv_out[4] = {0};
+            recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+            if (!strcmp(serv_out, SUCC_CODE))
+            {
+                int L_sent = 0;
+                char send_buff[200] = {0};
+                int read_len = 0;
+                while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
+                {
+                    if (read_len < CHUNK_SIZE)
+                    {
+                        send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
+                        L_sent = 1;
+                    }
+                    else
+                    {
+                        send(CLIENT_STATUS->sock, "M", sizeof("M"), 0);
+                    }
+                    uint16_t short_size = htons(read_len);
+                    send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
+                    send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+                }
+                if (!L_sent)
+                {
+                    send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
+                    read_len = 0;
+                    uint16_t short_size = htons(read_len);
+                    send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
+                    send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+                }
+                close(local_fd);
+            }
+            else
+            {
+                close(local_fd);
+                printf("Error in mput \n");
+                return;
+            }
+        }
+    }
     printf("Enter a valid command\n");
 }
 int main()
