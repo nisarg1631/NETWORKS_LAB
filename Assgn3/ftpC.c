@@ -413,7 +413,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             strcat(ncmd, " ");
             strcat(ncmd, cmd_and_args[i + 1]);
             int local_fd;
-            if ((local_fd = open(cmd_and_args[1], O_RDONLY)) < 0)
+            if ((local_fd = open(cmd_and_args[i+1], O_RDONLY)) < 0)
             {
                 printf("cant read local file, does not exist\n");
                 close(local_fd);
@@ -460,6 +460,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 return;
             }
         }
+        return;
     }
     printf("Enter a valid command\n");
 }
