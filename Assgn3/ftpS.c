@@ -22,6 +22,28 @@ const char *CMD_QUIT = "quit";
 const int SUCC_CODE = 200;
 const int FAIL_CODE = 500;
 const int FAIL_COMAND_ORDER = 600;
+char **parse_input(char *user_input, int *num_args)
+{
+    int size = 1;
+    int i = 0;
+    while (user_input[i] != '\0')
+        size += (user_input[i++] == ' ');
+    char **ret_string = (char **)calloc(sizeof(char *), size);
+    char *pch;
+    *num_args = size - 1;
+    i = 0;
+    do
+    {
+        if (i)
+            pch = strtok(NULL, " ");
+        else
+            pch = strtok(user_input, " ");
+        ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
+        strcpy(ret_string[i], pch);
+        i++;
+    } while (pch && i < size);
+    return ret_string;
+}
 
 int main()
 {
@@ -65,13 +87,59 @@ int main()
         if (!fork())
         {
             close(server_fd);
+
+            int user_done = 0;
+            int pass_done = 0;
+            int acc
+            char login_info[4][25] = {0}; // 0,1 store username and pswd for u1 and 2,3 store it for u2
+            char login_info_buffer[100];
             int login_fd;
             if ((login_fd = open("user.txt", O_RDONLY)) < 0)
             {
                 printf("user.txt does not exist\n");
-                // send(sock, itoa(FAIL_CODE), 4, 0);
+#warning "resolve this"
+                // send(sock, itoa(FAIL_), sizeof(itoa(FAIL_)), 0);
             }
+            int login_info_sz = read(login_fd, login_info_buffer, 100);
+            int login_idx = 0;
+            char *pch;
+            do
+            {
+                if (login_idx)
+                    pch = strtok(NULL, " \n\t");
+                else
+                    pch = strtok(login_info_buffer, " \n\t");
+                strcpy(login_info[login_idx], pch);
+                login_idx++;
+            } while (pch && login_idx < 4);
+            char recv_buffer[100] = {0};
+            while (1)
+            {
+                rev(sock, recv_buffer, 100, 0);
+                printf("%s\n", recv_buffer);
+                int num_args = 0;
+                char **user_cmd = parse_input(recv_buffer, &num_args);
+                if (strcmp(user_cmd[0], CMD_user) || num_args < 1)
+                {
+                    send(sock, itoa(FAIL_COMAND_ORDER), sizeof(itoa(FAIL_COMAND_ORDER)), 0);
+                    continue;
+                }
+                if (!strcmp(login_info[0], user_cmd[1]))
+                {
+
+                }
+                else if(!strcmp(login_info[2], user_cmd[1]))
+                {
+
+                }
+        
+            }
+
+            printf("closing socket\n");
+            close(sock);
+            exit(0);
         }
+        close(sock);
     }
     return 0;
 }
