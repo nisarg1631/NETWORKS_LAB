@@ -46,9 +46,9 @@ char **parse_input(char *user_input, int *num_args)
     do
     {
         if (i)
-            pch = strtok(NULL, " ");
+            pch = strtok(NULL, " \n");
         else
-            pch = strtok(user_input, " ");
+            pch = strtok(user_input, " \n");
         ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
         strcpy(ret_string[i], pch);
         i++;
@@ -64,14 +64,14 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         if (!strcmp(login_info[0], user_cmd[1]))
         {
             client_state->user_done = 1;
-            client_state->active_user = 0;
+            client_state->active_user = 1;
             send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
             return;
         }
         else if (!strcmp(login_info[2], user_cmd[1]))
         {
             client_state->user_done = 1;
-            client_state->active_user = 1;
+            client_state->active_user = 2;
             send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
             return;
         }
@@ -89,15 +89,15 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
             return;
         }
         int psidx = 1;
-        if (client_state->active_user)
+        if (client_state->active_user == 2)
         {
             psidx = 3;
         }
         if (!strcmp(user_cmd[1], login_info[psidx]))
         {
-
-            client_state->pass_done = 1;
             send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
+            printf("Correct password\n");
+            client_state->pass_done = 1;
             return;
         }
         else
@@ -266,7 +266,7 @@ int main()
             if ((login_fd = open("user.txt", O_RDONLY)) < 0)
             {
                 printf("user.txt does not exist\n");
-// #warning "resolve this"
+                // #warning "resolve this"
                 // send(sock,  (FAIL_), sizeof( (FAIL_)), 0);
             }
             int login_info_sz = read(login_fd, login_info_buffer, 100);
@@ -281,12 +281,13 @@ int main()
                 strcpy(login_info[login_idx], pch);
                 login_idx++;
             } while (pch && login_idx < 4);
+            // printf("%s \t %s \n", login_info[0], login_info[1]);
+            // printf("%s \t %s \n", login_info[2], login_info[3]);
             char recv_buffer[100] = {0};
             while (1) // handle commands
             {
                 memset(recv_buffer, 0, sizeof(recv_buffer));
                 int sz = recv(sock, recv_buffer, 100, 0);
-                recv_buffer[sz] = '\0';
                 printf("%s\n", recv_buffer);
                 command_handler(recv_buffer, &present_client_state, login_info);
             }

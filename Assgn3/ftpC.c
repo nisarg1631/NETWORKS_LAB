@@ -22,10 +22,9 @@ const char *CMD_MGET = "mget";
 const char *CMD_MPUT = "mput";
 const char *CMD_QUIT = "quit";
 
-
-const char* SUCC_CODE = "200";
-const char* FAIL_CODE = "500";
-const char* FAIL_COMAND_ORDER = "600";
+const char *SUCC_CODE = "200";
+const char *FAIL_CODE = "500";
+const char *FAIL_COMAND_ORDER = "600";
 
 const int MIN_PORT = 20000;
 const int MAX_PORT = 65535;
@@ -70,23 +69,19 @@ char **parse_input(char *user_input, int *num_args)
     do
     {
         if (i)
-            pch = strtok(NULL, " ");
+            pch = strtok(NULL, " \n");
         else
-            pch = strtok(user_input, " ");
+            pch = strtok(user_input, " \n");
         ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
         strcpy(ret_string[i], pch);
         i++;
     } while (pch && i < size);
     return ret_string;
 }
-void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_STATUS)
+void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_status *CLIENT_STATUS)
 {
-    char *user_cmd;
+    char *user_cmd = calloc(sizeof(char), sizeof(cmd_and_args[0]));
     strcpy(user_cmd, cmd_and_args[0]);
-    char *raw_cmd;
-    strcpy(raw_cmd, user_cmd);
-    for (int i = 1; i <= num_args; i++)
-        strcat(raw_cmd, cmd_and_args[i]);
     if (!strcmp(user_cmd, CMD_OPEN))
     {
         if (CLIENT_STATUS->open_done)
@@ -156,12 +151,13 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out,  SUCC_CODE))
+        printf(" response code: %s \n", serv_out);
+        if (!strcmp(serv_out, SUCC_CODE))
         {
             CLIENT_STATUS->pass_done = 1;
             printf("log in done\n");
         }
-        else if (!strcmp(serv_out,  FAIL_CODE))
+        else if (!strcmp(serv_out, FAIL_CODE))
         {
             printf("incorrect password\n");
             CLIENT_STATUS->user_done = 0;
@@ -243,7 +239,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out,  SUCC_CODE))
+        if (!strcmp(serv_out, SUCC_CODE))
         {
             int pack_over = 0;
             char type_header[2];
@@ -262,7 +258,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
                     pack_over = 1;
             } while (!pack_over);
         }
-        else if (!strcmp(serv_out,  FAIL_CODE))
+        else if (!strcmp(serv_out, FAIL_CODE))
         {
             printf("Error in get \n");
         }
@@ -286,7 +282,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out,  SUCC_CODE))
+        if (!strcmp(serv_out, SUCC_CODE))
         {
             char send_buff[100] = {0};
             int read_len = 0;
@@ -305,7 +301,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
                 send(CLIENT_STATUS->sock, send_buff, read_len, 0);
             }
         }
-        else if (!strcmp(serv_out,  FAIL_CODE))
+        else if (!strcmp(serv_out, FAIL_CODE))
         {
             printf("Error in put \n");
         }
@@ -326,8 +322,7 @@ int main()
     CLIENT_STATUS.user_done = 0;
     CLIENT_STATUS.sock = 0;
     CLIENT_STATUS.client_length = 0;
-    for (int i = 0; i < 16; i++)
-        CLIENT_STATUS.user_ip[i] = '\0';
+    memset(CLIENT_STATUS.user_ip, 0, sizeof(CLIENT_STATUS.user_ip));
     CLIENT_STATUS.user_port = 0;
 
     char user_input[100] = {0};
@@ -356,9 +351,13 @@ int main()
                 user_input[cnt - 1] = '\0';
                 cnt--;
             }
+            char *user_input_cpy = malloc(strlen(user_input) + 1);
+            strcpy(user_input_cpy, user_input);
             int num_args = 0;
             char **user_cmd = parse_input(user_input, &num_args);
-            command_handler(user_cmd, num_args, &CLIENT_STATUS);
+            printf("command parsing done\n");
+            command_handler(user_cmd, num_args, user_input_cpy, &CLIENT_STATUS);
+            printf("command handling done\n");
             while (~cnt)
                 user_input[cnt--] = 0;
             cnt = 0;
