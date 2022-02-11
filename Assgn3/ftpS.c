@@ -189,10 +189,10 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         if (!L_sent)
         {
             send(client_state->sockfd, "L", sizeof("L"), 0);
-            read_len = 0;
             uint16_t short_size = htons(read_len);
             send(client_state->sockfd, &short_size, sizeof(short_size), 0);
-            send(client_state->sockfd, send_buff, read_len, 0);
+            if (read_len)
+                send(client_state->sockfd, send_buff, read_len, 0);
         }
         printf("done sending file\n");
         return;
@@ -220,8 +220,11 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         }
         recv(client_state->sockfd, &pack_sz, sizeof(uint16_t), 0);
         pack_sz = ntohs(pack_sz);
-        recv(client_state->sockfd, recv_buffer, pack_sz, 0);
-        write(remote_fd, recv_buffer, pack_sz);
+        if (pack_sz)
+        {
+            recv(client_state->sockfd, recv_buffer, pack_sz, 0);
+            write(remote_fd, recv_buffer, pack_sz);
+        }
         close(remote_fd);
         return;
     }
@@ -296,7 +299,7 @@ int main()
                 strcpy(login_info[login_idx], pch);
                 login_idx++;
             } while (pch && login_idx < 4);
-            
+
             char recv_buffer[200] = {0};
             while (1) // handle commands
             {

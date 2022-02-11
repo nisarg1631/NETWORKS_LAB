@@ -276,8 +276,11 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             }
             recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
             pack_sz = ntohs(pack_sz);
-            recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-            write(local_fd, recv_buffer, pack_sz);
+            if (pack_sz)
+            {
+                recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
+                write(local_fd, recv_buffer, pack_sz);
+            }
             close(local_fd);
             return;
         }
@@ -328,10 +331,10 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             if (!L_sent)
             {
                 send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                read_len = 0;
                 uint16_t short_size = htons(read_len);
                 send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
-                send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+                if (read_len)
+                    send(CLIENT_STATUS->sock, send_buff, read_len, 0);
             }
         }
         else if (!strcmp(serv_out, FAIL_CODE))
@@ -361,7 +364,8 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 close(local_fd);
                 return;
             }
-            send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+            printf("ncmd: %s \n", ncmd);
+            send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
             recv(CLIENT_STATUS->sock, serv_out, 4, 0);
             if (!strcmp(serv_out, SUCC_CODE))
@@ -378,11 +382,17 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                     write(local_fd, recv_buffer, pack_sz);
                     recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
                 }
+                // printf(" done with  m\n");
                 recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
                 pack_sz = ntohs(pack_sz);
-                recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-                write(local_fd, recv_buffer, pack_sz);
+                if (pack_sz)
+                {
+                    recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
+                    write(local_fd, recv_buffer, pack_sz);
+                }
+                // printf(" done with  L\n");
                 close(local_fd);
+                printf("done with this command\n");
             }
             else
             {
@@ -409,7 +419,8 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 close(local_fd);
                 return;
             }
-            send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+            printf("ncmd: %s \n", ncmd);
+            send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
             recv(CLIENT_STATUS->sock, serv_out, 4, 0);
             if (!strcmp(serv_out, SUCC_CODE))
@@ -435,10 +446,10 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 if (!L_sent)
                 {
                     send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                    read_len = 0;
                     uint16_t short_size = htons(read_len);
                     send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
-                    send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+                    if (read_len)
+                        send(CLIENT_STATUS->sock, send_buff, read_len, 0);
                 }
                 close(local_fd);
             }
