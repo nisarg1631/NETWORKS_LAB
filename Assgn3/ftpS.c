@@ -61,23 +61,24 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     char **user_cmd = parse_input(recv_buffer, &num_args);
     if (!strcmp(user_cmd[0], CMD_user))
     {
+        // printf("%d \n", strlen(SUCC_CODE) + 1);
         if (!strcmp(login_info[0], user_cmd[1]))
         {
             client_state->user_done = 1;
             client_state->active_user = 1;
-            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
+            send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
             return;
         }
         else if (!strcmp(login_info[2], user_cmd[1]))
         {
             client_state->user_done = 1;
             client_state->active_user = 2;
-            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
+            send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
             return;
         }
         else
         {
-            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
+            send(client_state->sockfd, FAIL_CODE, strlen(FAIL_CODE) + 1, 0);
             return;
         }
     }
@@ -85,7 +86,7 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     {
         if (client_state->user_done == 0)
         {
-            send(client_state->sockfd, FAIL_COMAND_ORDER, sizeof(FAIL_COMAND_ORDER), 0);
+            send(client_state->sockfd, FAIL_COMAND_ORDER, strlen(FAIL_COMAND_ORDER) + 1, 0);
             return;
         }
         int psidx = 1;
@@ -95,14 +96,14 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         }
         if (!strcmp(user_cmd[1], login_info[psidx]))
         {
-            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
-            printf("Correct password\n");
+            send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
+            // printf("Correct password\n");
             client_state->pass_done = 1;
             return;
         }
         else
         {
-            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
+            send(client_state->sockfd, FAIL_CODE, strlen(FAIL_CODE) + 1, 0);
             return;
         }
     }
@@ -113,18 +114,18 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     }
     if (client_state->pass_done == 0)
     {
-        send(client_state->sockfd, FAIL_COMAND_ORDER, sizeof(FAIL_COMAND_ORDER), 0);
+        send(client_state->sockfd, FAIL_COMAND_ORDER, strlen(FAIL_COMAND_ORDER) + 1, 0);
         return;
     }
     if (!strcmp(user_cmd[0], CMD_CD))
     {
-        if (chdir(user_cmd[1]))
+        if (!chdir(user_cmd[1]))
         {
-            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
+            send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
         }
         else
         {
-            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
+            send(client_state->sockfd, FAIL_CODE, strlen(FAIL_CODE) + 1, 0);
         }
         return;
     }
@@ -133,44 +134,49 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         char current_directory[200];
         struct dirent *dir_files;
         DIR *dir = opendir(getcwd(current_directory, 200));
-        char send_buff[100] = {0};
+        char send_buff[200] = {0};
         int idx = 0;
         while (dir_files = readdir(dir))
         {
             if (dir_files->d_name[0] == '.')
                 continue;
             int i = 0;
-            while (dir_files->d_name[i] && idx < 100)
+            while (dir_files->d_name[i] != '\0')
             {
-                send_buff[idx++] = dir_files->d_name[i++];
+                send_buff[idx++] = dir_files->d_name[i];
+                i++;
+                if (idx == 200)
+                {
+                    send(client_state->sockfd, send_buff, 200, 0);
+                    idx = 0;
+                }
             }
-            if (idx == 100)
+            send_buff[idx++] = '\0';
+            if (idx == 200)
             {
-                send(client_state->sockfd, send_buff, 100, 0);
+                send(client_state->sockfd, send_buff, 200, 0);
                 idx = 0;
             }
-            if (!dir_files->d_name[i])
-            {
-                send_buff[idx++] = '\0';
-            }
         }
-        send_buff[0] = '\0';
-        send(client_state->sockfd, send_buff, 100, 0);
+        send_buff[idx++] = '\0';
+        send(client_state->sockfd, send_buff, idx, 0);
         return;
     }
     if (!strcmp(user_cmd[0], CMD_GET))
     {
         int remote_file_fd;
         if ((remote_file_fd = open(user_cmd[1], O_RDONLY)) < 0)
-            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
-        send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
-        char send_buff[100] = {0};
+            send(client_state->sockfd, FAIL_CODE, strlen(FAIL_CODE) + 1, 0);
+        send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
+        char send_buff[200] = {0};
         int read_len = 0;
+        int L_sent = 0;
         while ((read_len = read(remote_file_fd, send_buff, CHUNK_SIZE)) > 0)
         {
             if (read_len < CHUNK_SIZE)
             {
                 send(client_state->sockfd, "L", sizeof("L"), 0);
+                L_sent = 1;
             }
             else
             {
@@ -180,34 +186,43 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
             send(client_state->sockfd, &short_size, sizeof(short_size), 0);
             send(client_state->sockfd, send_buff, read_len, 0);
         }
+        if (!L_sent)
+        {
+            send(client_state->sockfd, "L", sizeof("L"), 0);
+            read_len = 0;
+            uint16_t short_size = htons(read_len);
+            send(client_state->sockfd, &short_size, sizeof(short_size), 0);
+            send(client_state->sockfd, send_buff, read_len, 0);
+        }
+        printf("done sending file\n");
         return;
     }
     if (!strcmp(user_cmd[0], CMD_PUT))
     {
-        int fd;
-        if ((fd = open(user_cmd[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+        int remote_fd;
+        if ((remote_fd = open(user_cmd[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
         {
-            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
+            send(client_state->sockfd, FAIL_CODE, strlen(FAIL_CODE) + 1, 0);
             return;
         }
-        send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
-        int pack_over = 0;
-        char type_header[2];
+        send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
+        char type_header[2] = {0};
         uint16_t pack_sz;
-        char recv_buffer[100];
-        do
+        char recv_buffer[200];
+        recv(client_state->sockfd, type_header, sizeof(type_header), 0);
+        while (type_header[0] == 'M')
         {
-            memset(type_header, 0, sizeof(type_header));
-            memset(recv_buffer, 0, sizeof(recv_buffer));
-            recv(client_state->sockfd, type_header, sizeof(type_header), 0);
             recv(client_state->sockfd, &pack_sz, sizeof(uint16_t), 0);
-            recv(client_state->sockfd, recv_buffer, pack_sz, 0);
             pack_sz = ntohs(pack_sz);
-            write(fd, recv_buffer, pack_sz);
-            if (type_header[0] == 'L')
-                pack_over = 1;
-        } while (!pack_over);
-        close(fd);
+            recv(client_state->sockfd, recv_buffer, pack_sz, 0);
+            write(remote_fd, recv_buffer, pack_sz);
+            recv(client_state->sockfd, type_header, sizeof(type_header), 0);
+        }
+        recv(client_state->sockfd, &pack_sz, sizeof(uint16_t), 0);
+        pack_sz = ntohs(pack_sz);
+        recv(client_state->sockfd, recv_buffer, pack_sz, 0);
+        write(remote_fd, recv_buffer, pack_sz);
+        close(remote_fd);
         return;
     }
     printf("INVALD COMMAND\n");
@@ -261,7 +276,7 @@ int main()
             present_client_state.user_done = 0;
             present_client_state.sockfd = sock;
             char login_info[4][25] = {0}; // 0,1 store username and pswd for u1 and 2,3 store it for u2
-            char login_info_buffer[100];
+            char login_info_buffer[200];
             int login_fd;
             if ((login_fd = open("user.txt", O_RDONLY)) < 0)
             {
@@ -269,7 +284,7 @@ int main()
                 // #warning "resolve this"
                 // send(sock,  (FAIL_), sizeof( (FAIL_)), 0);
             }
-            int login_info_sz = read(login_fd, login_info_buffer, 100);
+            int login_info_sz = read(login_fd, login_info_buffer, 200);
             int login_idx = 0;
             char *pch;
             do
@@ -281,13 +296,12 @@ int main()
                 strcpy(login_info[login_idx], pch);
                 login_idx++;
             } while (pch && login_idx < 4);
-            // printf("%s \t %s \n", login_info[0], login_info[1]);
-            // printf("%s \t %s \n", login_info[2], login_info[3]);
-            char recv_buffer[100] = {0};
+            
+            char recv_buffer[200] = {0};
             while (1) // handle commands
             {
                 memset(recv_buffer, 0, sizeof(recv_buffer));
-                int sz = recv(sock, recv_buffer, 100, 0);
+                int sz = recv(sock, recv_buffer, 200, 0);
                 printf("%s\n", recv_buffer);
                 command_handler(recv_buffer, &present_client_state, login_info);
             }
