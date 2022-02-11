@@ -33,10 +33,16 @@ typedef struct
     int open_done;
     int user_done;
     int pass_done;
-} client_auth_status;
+    int sock;
+    int client_length;
+    struct sockaddr_in server_address;
+    struct sockaddr_in client_address;
+    char user_ip[16];
+    int user_port;
+} client_status;
 
 // checks the order of client commands
-int command_order(client_auth_status *CLIENT_STATUS)
+int command_order(client_status *CLIENT_STATUS)
 {
     if (!CLIENT_STATUS->open_done && !CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
         return 1;
@@ -70,18 +76,59 @@ char **parse_input(char *user_input, int *num_args)
     } while (pch && i < size);
     return ret_string;
 }
-void command_handler(char **cmd_and_args, client_auth_status *CLIENT_STATUS)
+void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_STATUS)
 {
-    return;
+    char *user_cmd = cmd_and_args[0];
+    if (!strcmp(user_cmd, CMD_OPEN))
+    {
+        if (num_args != 2)
+        {
+            printf("Malformed open request, format open <ip> <port>\n");
+            return;
+        }
+        strcpy(CLIENT_STATUS->user_ip, cmd_and_args[1]);
+        CLIENT_STATUS->user_port = atoi(cmd_and_args[2]);
+        printf("Connection to server done\n");
+        CLIENT_STATUS->open_done = 1;
+        CLIENT_STATUS->sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (CLIENT_STATUS->sock < 0)
+        {
+            perror("Unable to create a socket\n");
+            return;
+        }
+        CLIENT_STATUS->server_address.sin_family = AF_INET;
+        inet_aton(CLIENT_STATUS->user_ip, &(CLIENT_STATUS->server_address.sin_addr));
+        CLIENT_STATUS->server_address.sin_port = htons(CLIENT_STATUS->user_port);
+        if ((connect(CLIENT_STATUS->sock, (struct sockaddr *)&(CLIENT_STATUS->server_address), sizeof(CLIENT_STATUS->server_address))) < 0)
+        {
+            perror("Unable to connect to server\n");
+            return;
+        }
+        printf("Connection with server successful\n");
+        return;
+    }
+    else if ()
+    {
+    }
+
+    else if (!strcmp(user_cmd, CMD_QUIT))
+    {
+        close(CLIENT_STATUS->sock);
+        exit(0);
+    }
 }
 int main()
 {
-    client_auth_status CLIENT_STATUS;
+    client_status CLIENT_STATUS;
     CLIENT_STATUS.open_done = 0;
     CLIENT_STATUS.pass_done = 0;
     CLIENT_STATUS.user_done = 0;
-    int sock = 0, client_length = 0;
-    struct sockaddr_in server_address, client_address;
+    CLIENT_STATUS.sock = 0;
+    CLIENT_STATUS.client_length = 0;
+    for (int i = 0; i < 16; i++)
+        CLIENT_STATUS.user_ip[i] = '\0';
+    CLIENT_STATUS.user_port = 0;
+
     char user_input[100] = {0};
     while (1)
     {
@@ -110,7 +157,7 @@ int main()
             }
             int num_args = 0;
             char **user_cmd = parse_input(user_input, &num_args);
-            command_handler(user_cmd, &CLIENT_STATUS);
+            command_handler(user_cmd, num_args, &CLIENT_STATUS);
             while (~cnt)
                 user_input[cnt--] = 0;
             cnt = 0;
