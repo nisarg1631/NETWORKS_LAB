@@ -41,17 +41,17 @@ typedef struct
     int user_port;
 } client_status;
 
-// checks the order of client commands
-int command_order(client_status *CLIENT_STATUS)
-{
-    if (!CLIENT_STATUS->open_done && !CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
-        return 1;
-    if (CLIENT_STATUS->open_done && !CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
-        return 1;
-    if (CLIENT_STATUS->open_done && CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
-        return 1;
-    return 0;
-}
+// // checks the order of client commands
+// int command_order(client_status *CLIENT_STATUS)
+// {
+//     if (!CLIENT_STATUS->open_done && !CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
+//         return 1;
+//     if (CLIENT_STATUS->open_done && !CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
+//         return 1;
+//     if (CLIENT_STATUS->open_done && CLIENT_STATUS->user_done && !CLIENT_STATUS->pass_done)
+//         return 1;
+//     return 0;
+// }
 
 // parses the input and returns a list with the command as the first element and its corresponding arguments after it
 char **parse_input(char *user_input, int *num_args)
@@ -78,18 +78,31 @@ char **parse_input(char *user_input, int *num_args)
 }
 void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_STATUS)
 {
-    char *user_cmd = cmd_and_args[0];
+    char *user_cmd;
+    strcpy(user_cmd, cmd_and_args[0]);
+    char *raw_cmd;
+    strcpy(raw_cmd, user_cmd);
+    for (int i = 1; i <= num_args; i++)
+        strcat(raw_cmd, cmd_and_args[i]);
     if (!strcmp(user_cmd, CMD_OPEN))
     {
-        if (num_args != 2)
+        if (CLIENT_STATUS->open_done)
+        {
+            printf("Connection already open\n");
+            return;
+        }
+        if (num_args < 2)
         {
             printf("Malformed open request, format open <ip> <port>\n");
             return;
         }
         strcpy(CLIENT_STATUS->user_ip, cmd_and_args[1]);
         CLIENT_STATUS->user_port = atoi(cmd_and_args[2]);
-        printf("Connection to server done\n");
-        CLIENT_STATUS->open_done = 1;
+        if (CLIENT_STATUS->user_port < MIN_PORT || CLIENT_STATUS->user_port > MAX_PORT)
+        {
+            printf("Port should be between 20000 and 65535\n");
+            return;
+        }
         CLIENT_STATUS->sock = socket(AF_INET, SOCK_STREAM, 0);
         if (CLIENT_STATUS->sock < 0)
         {
@@ -104,18 +117,81 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
             perror("Unable to connect to server\n");
             return;
         }
-        printf("Connection with server successful\n");
+        printf("Connection to server done\n");
+        CLIENT_STATUS->open_done = 1;
         return;
     }
-    else if ()
+
+    if (!CLIENT_STATUS->open_done)
     {
+        printf("Please open a valid connection first\n");
+        return;
     }
 
-    else if (!strcmp(user_cmd, CMD_QUIT))
+    if (!strcmp(user_cmd, CMD_user))
+    {
+        send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+        char serv_out[4] = {0};
+        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        {
+            CLIENT_STATUS->user_done = 1;
+        }
+        else
+        {
+            printf("Enter valid username\n");
+        }
+        return;
+    }
+    if (!strcmp(user_cmd, CMD_PASS))
+    {
+        if (!CLIENT_STATUS->user_done)
+        {
+            printf("You must first enter the username\n");
+            return;
+        }
+        send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+        char serv_out[4] = {0};
+        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        {
+            CLIENT_STATUS->pass_done = 1;
+            printf("log in done\n");
+        }
+        else if (!strcmp(serv_out, itoa(FAIL_CODE)))
+        {
+            printf("incorrect password\n");
+            CLIENT_STATUS->user_done = 0;
+        }
+        else
+        {
+            printf("invalid command order\n");
+        }
+        return;
+    }
+    if (!strcmp(user_cmd, CMD_LCD))
+    {
+        if (num_args < 1)
+        {
+            printf("Malformed lcd cmd, format lcd <dir_name>\n");
+            return;
+        }
+        if (chdir(cmd_and_args[1]))
+        {
+            printf("could not change the directory\n");
+        }
+        else
+        {
+            printf("changed directory to %s\n", getcwd(cmd_and_args[1], strlen(cmd_and_args[1]) + 1));
+        }
+        return;
+    }
+    if (!strcmp(user_cmd, CMD_QUIT))
     {
         close(CLIENT_STATUS->sock);
         exit(0);
     }
+    // other commands 
 }
 int main()
 {
