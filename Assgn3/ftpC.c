@@ -22,9 +22,11 @@ const char *CMD_MGET = "mget";
 const char *CMD_MPUT = "mput";
 const char *CMD_QUIT = "quit";
 
-const int SUCC_CODE = 200;
-const int FAIL_CODE = 500;
-const int FAIL_COMAND_ORDER = 600;
+
+const char* SUCC_CODE = "200";
+const char* FAIL_CODE = "500";
+const char* FAIL_COMAND_ORDER = "600";
+
 const int MIN_PORT = 20000;
 const int MAX_PORT = 65535;
 const int CHUNK_SIZE = 64;
@@ -134,7 +136,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        if (!strcmp(serv_out, SUCC_CODE))
         {
             CLIENT_STATUS->user_done = 1;
         }
@@ -154,12 +156,12 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        if (!strcmp(serv_out,  SUCC_CODE))
         {
             CLIENT_STATUS->pass_done = 1;
             printf("log in done\n");
         }
-        else if (!strcmp(serv_out, itoa(FAIL_CODE)))
+        else if (!strcmp(serv_out,  FAIL_CODE))
         {
             printf("incorrect password\n");
             CLIENT_STATUS->user_done = 0;
@@ -241,7 +243,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        if (!strcmp(serv_out,  SUCC_CODE))
         {
             int pack_over = 0;
             char type_header[2];
@@ -260,7 +262,7 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
                     pack_over = 1;
             } while (!pack_over);
         }
-        else if (!strcmp(serv_out, itoa(FAIL_CODE)))
+        else if (!strcmp(serv_out,  FAIL_CODE))
         {
             printf("Error in get \n");
         }
@@ -281,10 +283,10 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
             close(local_fd);
             return;
         }
-        send(CLIENT_STATUS, raw_cmd, strlen(raw_cmd) + 1, 0);
+        send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        if (!strcmp(serv_out, itoa(SUCC_CODE)))
+        if (!strcmp(serv_out,  SUCC_CODE))
         {
             char send_buff[100] = {0};
             int read_len = 0;
@@ -298,12 +300,12 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
                 {
                     send(CLIENT_STATUS->sock, "M", sizeof("M"), 0);
                 }
-                uint16_t short_size = htos(read_len);
-                send(CLIENT_STATUS->sock, short_size, sizeof(short_size), 0);
+                uint16_t short_size = htons(read_len);
+                send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
                 send(CLIENT_STATUS->sock, send_buff, read_len, 0);
             }
         }
-        else if (!strcmp(serv_out, itoa(FAIL_CODE)))
+        else if (!strcmp(serv_out,  FAIL_CODE))
         {
             printf("Error in put \n");
         }

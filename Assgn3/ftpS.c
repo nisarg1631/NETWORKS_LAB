@@ -21,9 +21,10 @@ const char *CMD_MGET = "mget";
 const char *CMD_MPUT = "mput";
 const char *CMD_QUIT = "quit";
 
-const int SUCC_CODE = 200;
-const int FAIL_CODE = 500;
-const int FAIL_COMAND_ORDER = 600;
+const char *SUCC_CODE = "200";
+const char *FAIL_CODE = "500";
+const char *FAIL_COMAND_ORDER = "600";
+
 const int CHUNK_SIZE = 64;
 typedef struct
 {
@@ -64,19 +65,19 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         {
             client_state->user_done = 1;
             client_state->active_user = 0;
-            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
             return;
         }
         else if (!strcmp(login_info[2], user_cmd[1]))
         {
             client_state->user_done = 1;
             client_state->active_user = 1;
-            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
             return;
         }
         else
         {
-            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
             return;
         }
     }
@@ -84,7 +85,7 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     {
         if (client_state->user_done == 0)
         {
-            send(client_state->sockfd, itoa(FAIL_COMAND_ORDER), sizeof(itoa(FAIL_COMAND_ORDER)), 0);
+            send(client_state->sockfd, FAIL_COMAND_ORDER, sizeof(FAIL_COMAND_ORDER), 0);
             return;
         }
         int psidx = 1;
@@ -96,12 +97,12 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         {
 
             client_state->pass_done = 1;
-            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
             return;
         }
         else
         {
-            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
             return;
         }
     }
@@ -110,15 +111,20 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         close(client_state->sockfd);
         exit(0);
     }
+    if (client_state->pass_done == 0)
+    {
+        send(client_state->sockfd, FAIL_COMAND_ORDER, sizeof(FAIL_COMAND_ORDER), 0);
+        return;
+    }
     if (!strcmp(user_cmd[0], CMD_CD))
     {
         if (chdir(user_cmd[1]))
         {
-            send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+            send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
         }
         else
         {
-            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
         }
         return;
     }
@@ -155,9 +161,9 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     if (!strcmp(user_cmd[0], CMD_GET))
     {
         int remote_file_fd;
-        if ((remote_file_fd = open(atoi(user_cmd[1]), O_RDONLY)) < 0)
-            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
-        send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+        if ((remote_file_fd = open(user_cmd[1], O_RDONLY)) < 0)
+            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
+        send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
         char send_buff[100] = {0};
         int read_len = 0;
         while ((read_len = read(remote_file_fd, send_buff, CHUNK_SIZE)) > 0)
@@ -170,8 +176,8 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
             {
                 send(client_state->sockfd, "M", sizeof("M"), 0);
             }
-            uint16_t short_size = htos(read_len);
-            send(client_state->sockfd, short_size, sizeof(short_size), 0);
+            uint16_t short_size = htons(read_len);
+            send(client_state->sockfd, &short_size, sizeof(short_size), 0);
             send(client_state->sockfd, send_buff, read_len, 0);
         }
         return;
@@ -181,10 +187,10 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         int fd;
         if ((fd = open(user_cmd[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
         {
-            send(client_state->sockfd, itoa(FAIL_CODE), sizeof(itoa(FAIL_CODE)), 0);
+            send(client_state->sockfd, FAIL_CODE, sizeof(FAIL_CODE), 0);
             return;
         }
-        send(client_state->sockfd, itoa(SUCC_CODE), sizeof(itoa(SUCC_CODE)), 0);
+        send(client_state->sockfd, SUCC_CODE, sizeof(SUCC_CODE), 0);
         int pack_over = 0;
         char type_header[2];
         uint16_t pack_sz;
@@ -260,8 +266,8 @@ int main()
             if ((login_fd = open("user.txt", O_RDONLY)) < 0)
             {
                 printf("user.txt does not exist\n");
-#warning "resolve this"
-                // send(sock, itoa(FAIL_), sizeof(itoa(FAIL_)), 0);
+// #warning "resolve this"
+                // send(sock,  (FAIL_), sizeof( (FAIL_)), 0);
             }
             int login_info_sz = read(login_fd, login_info_buffer, 100);
             int login_idx = 0;
