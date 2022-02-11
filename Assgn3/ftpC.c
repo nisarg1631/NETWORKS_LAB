@@ -192,6 +192,8 @@ void command_handler(char **cmd_and_args, int num_args, client_status *CLIENT_ST
         exit(0);
     }
     // other commands 
+    
+    printf("Enter a valid command\n");
 }
 int main()
 {
