@@ -28,7 +28,7 @@ const char *FAIL_COMAND_ORDER = "600";
 
 const int MIN_PORT = 20000;
 const int MAX_PORT = 65535;
-const int CHUNK_SIZE = 64;
+const int CHUNK_SIZE = 200  ;
 
 typedef struct
 {
@@ -181,7 +181,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         }
         else
         {
-            char new_dir[205];
+            char new_dir[200];
             getcwd(new_dir, 200);
             printf("changed directory to %s\n", new_dir);
         }
@@ -280,7 +280,8 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             }
             char type_header[2] = {0};
             uint16_t pack_sz;
-            char recv_buffer[205];
+            char recv_buffer[200];
+
             recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
             while (type_header[0] == 'M')
             {
@@ -292,12 +293,10 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             }
             recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
             pack_sz = ntohs(pack_sz);
-            if (pack_sz)
-            {
-                recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-                write(local_fd, recv_buffer, pack_sz);
-            }
+            recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
+            write(local_fd, recv_buffer, pack_sz);
             close(local_fd);
+            printf("get done\n");
             return;
         }
         else if (!strcmp(serv_out, FAIL_CODE))
@@ -327,7 +326,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         if (!strcmp(serv_out, SUCC_CODE))
         {
             int L_sent = 0;
-            char send_buff[205] = {0};
+            char send_buff[200] = {0};
             int read_len = 0;
             while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
             {
@@ -369,7 +368,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     {
         for (int i = 0; i < num_args; i++)
         {
-            char ncmd[205] = "get ";
+            char ncmd[200] = "get ";
             strcat(ncmd, cmd_and_args[i + 1]);
             strcat(ncmd, " ");
             strcat(ncmd, cmd_and_args[i + 1]);
@@ -388,17 +387,18 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 }
                 char type_header[2] = {0};
                 uint16_t pack_sz;
-                char recv_buffer[205];
+                int szz = 0;
+                char recv_buffer[200];
                 recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
                 while (type_header[0] == 'M')
                 {
                     recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
-                    pack_sz = ntohs(pack_sz);
-                    recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-                    write(local_fd, recv_buffer, pack_sz);
+                    szz = ntohs(pack_sz);
+                    recv(CLIENT_STATUS->sock, recv_buffer, szz, 0);
+                    write(local_fd, recv_buffer, szz);
                     recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
                 }
-                // printf(" done with  m\n");
+                printf(" done with  m %c\n", type_header[0]);
                 recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
                 pack_sz = ntohs(pack_sz);
                 if (pack_sz)
@@ -406,7 +406,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                     recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
                     write(local_fd, recv_buffer, pack_sz);
                 }
-                // printf(" done with  L\n");
+                printf(" done with  L\n");
                 close(local_fd);
                 printf("done with this command\n");
             }
@@ -424,7 +424,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     {
         for (int i = 0; i < num_args; i++)
         {
-            char ncmd[205] = "put ";
+            char ncmd[200] = "put ";
             strcat(ncmd, cmd_and_args[i + 1]);
             strcat(ncmd, " ");
             strcat(ncmd, cmd_and_args[i + 1]);
@@ -442,7 +442,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             if (!strcmp(serv_out, SUCC_CODE))
             {
                 int L_sent = 0;
-                char send_buff[205] = {0};
+                char send_buff[200] = {0};
                 int read_len = 0;
                 while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
                 {
@@ -491,7 +491,7 @@ int main()
     memset(CLIENT_STATUS.user_ip, 0, sizeof(CLIENT_STATUS.user_ip));
     CLIENT_STATUS.user_port = 0;
 
-    char user_input[205] = {0};
+    char user_input[200] = {0};
     while (1)
     {
         printf("%s", PROMPT_START);
