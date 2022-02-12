@@ -131,11 +131,11 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     }
     if (!strcmp(user_cmd[0], CMD_LS))
     {
-        char current_directory[200];
+        char current_directory[205];
         struct dirent *dir_files;
         DIR *dir = opendir(getcwd(current_directory, 200));
         send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
-        char send_buff[200] = {0};
+        char send_buff[205] = {0};
         int idx = 0;
         while (dir_files = readdir(dir))
         {
@@ -172,7 +172,7 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
             return;
         }
         send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
-        char send_buff[200] = {0};
+        char send_buff[205] = {0};
         int read_len = 0;
         int L_sent = 0;
         while ((read_len = read(remote_file_fd, send_buff, CHUNK_SIZE)) > 0)
@@ -212,7 +212,7 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
         char type_header[2] = {0};
         uint16_t pack_sz;
-        char recv_buffer[200];
+        char recv_buffer[205];
         recv(client_state->sockfd, type_header, sizeof(type_header), 0);
         while (type_header[0] == 'M')
         {
@@ -283,7 +283,7 @@ int main()
             present_client_state.user_done = 0;
             present_client_state.sockfd = sock;
             char login_info[4][25] = {0}; // 0,1 store username and pswd for u1 and 2,3 store it for u2
-            char login_info_buffer[200];
+            char login_info_buffer[205];
             int login_fd;
             if ((login_fd = open("user.txt", O_RDONLY)) < 0)
             {
@@ -304,7 +304,7 @@ int main()
                 login_idx++;
             } while (pch && login_idx < 4);
 
-            char recv_buffer[200] = {0};
+            char recv_buffer[205] = {0};
             while (1) // handle commands
             {
                 memset(recv_buffer, 0, sizeof(recv_buffer));
