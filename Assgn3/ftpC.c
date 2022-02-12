@@ -265,18 +265,19 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
 
     if (!strcmp(user_cmd, CMD_GET))
     {
-        int local_fd;
-        if ((local_fd = open(cmd_and_args[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
-        {
-            printf(" no permission to create local file\n");
-            close(local_fd);
-            return;
-        }
+
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
         if (!strcmp(serv_out, SUCC_CODE))
         {
+            int local_fd;
+            if ((local_fd = open(cmd_and_args[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+            {
+                printf(" no permission to create local file\n");
+                close(local_fd);
+                return;
+            }
             char type_header[2] = {0};
             uint16_t pack_sz;
             char recv_buffer[200];
@@ -307,7 +308,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         {
             printf("invalid command order\n");
         }
-        close(local_fd);
+        // close(local_fd);
         return;
     }
 
@@ -372,19 +373,19 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             strcat(ncmd, cmd_and_args[i + 1]);
             strcat(ncmd, " ");
             strcat(ncmd, cmd_and_args[i + 1]);
-            int local_fd;
-            if ((local_fd = open(cmd_and_args[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
-            {
-                printf(" no permission to create local file\n");
-                close(local_fd);
-                return;
-            }
             printf("ncmd: %s \n", ncmd);
             send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
             recv(CLIENT_STATUS->sock, serv_out, 4, 0);
             if (!strcmp(serv_out, SUCC_CODE))
             {
+                int local_fd;
+                if ((local_fd = open(cmd_and_args[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+                {
+                    printf(" no permission to create local file\n");
+                    close(local_fd);
+                    return;
+                }
                 char type_header[2] = {0};
                 uint16_t pack_sz;
                 char recv_buffer[200];
@@ -411,7 +412,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             }
             else
             {
-                close(local_fd);
+                // close(local_fd);
                 printf("Error in mget \n");
                 break;
                 return;
