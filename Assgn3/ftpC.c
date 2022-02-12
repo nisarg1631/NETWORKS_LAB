@@ -214,40 +214,52 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     }
     if (!strcmp(user_cmd, CMD_LS))
     {
-        
+
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        char file_buff[10] = {0};
-        int packet_size = 0;
-        int last_null = 0;
-        int file_done = 0;
-        while ((packet_size = recv(CLIENT_STATUS->sock, file_buff, 10, 0)) > 0)
+        if (!strcmp(serv_out, SUCC_CODE))
         {
-            for (int i = 0; i < packet_size; i++)
+            char file_buff[10] = {0};
+            int packet_size = 0;
+            int last_null = 0;
+            int file_done = 0;
+            while ((packet_size = recv(CLIENT_STATUS->sock, file_buff, 10, 0)) > 0)
             {
-                if (file_buff[i] != '\0')
+                for (int i = 0; i < packet_size; i++)
                 {
-                    printf("%c", file_buff[i]);
-                    last_null = 0;
-                }
-                else
-                {
-                    printf("\n");
-                    if (last_null)
+                    if (file_buff[i] != '\0')
                     {
-                        file_done = 1;
-                        break;
+                        printf("%c", file_buff[i]);
+                        last_null = 0;
                     }
-                    last_null = 1;
+                    else
+                    {
+                        printf("\n");
+                        if (last_null)
+                        {
+                            file_done = 1;
+                            break;
+                        }
+                        last_null = 1;
+                    }
+                }
+                if (file_done)
+                {
+                    break;
                 }
             }
-            if (file_done)
-            {
-                break;
-            }
+            // printf("\n");
+            return;
         }
-        // printf("\n");
+        else if (!strcmp(serv_out, FAIL_CODE))
+        {
+            printf("Error in dir \n");
+        }
+        else
+        {
+            printf("invalid command order\n");
+        }
         return;
     }
 
@@ -416,7 +428,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             strcat(ncmd, " ");
             strcat(ncmd, cmd_and_args[i + 1]);
             int local_fd;
-            if ((local_fd = open(cmd_and_args[i+1], O_RDONLY)) < 0)
+            if ((local_fd = open(cmd_and_args[i + 1], O_RDONLY)) < 0)
             {
                 printf("cant read local file, does not exist\n");
                 close(local_fd);
