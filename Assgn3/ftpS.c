@@ -160,6 +160,8 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
             }
         }
         send_buff[idx++] = '\0';
+        if (idx < 200)
+            send_buff[idx++] = '\0';
         send(client_state->sockfd, send_buff, idx, 0);
         return;
     }
