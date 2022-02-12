@@ -167,7 +167,10 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     {
         int remote_file_fd;
         if ((remote_file_fd = open(user_cmd[1], O_RDONLY)) < 0)
+        {
             send(client_state->sockfd, FAIL_CODE, strlen(FAIL_CODE) + 1, 0);
+            return;
+        }
         send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
         char send_buff[200] = {0};
         int read_len = 0;
