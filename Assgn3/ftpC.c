@@ -187,6 +187,11 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     }
     if (!strcmp(user_cmd, CMD_LCD))
     {
+        if (!CLIENT_STATUS->pass_done)
+        {
+            printf("You must first login\n");
+            return;
+        }
         if (num_args < 1)
         {
             printf("Malformed lcd cmd, format lcd <dir_name>\n");
