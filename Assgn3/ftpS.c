@@ -26,6 +26,24 @@ const char *FAIL_CODE = "500";
 const char *FAIL_COMAND_ORDER = "600";
 
 const int CHUNK_SIZE = 200;
+
+void stobin(char *str, uint16_t n)
+{
+    uint16_t i = 0;
+    int idx = 0;
+    for (i = 1 << 15; i > 0; i = i / 2)
+    {
+        if (n & i)
+            str[idx++] = '1';
+        else
+            str[idx++] = '0';
+    }
+    str[16] = '\0';
+}
+int bintoi(char *str)
+{
+    return (int)strtol(str, NULL, 2);
+}
 typedef struct
 {
     int user_done;
@@ -177,18 +195,26 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         char send_buff[200] = {0};
         int read_len = 0;
         int L_sent = 0;
-        while ((read_len = read(remote_file_fd, send_buff, CHUNK_SIZE)) == CHUNK_SIZE)
+        while (1)
         {
-            uint16_t short_size = htons(read_len);
-            send(client_state->sockfd, "M", sizeof("M"), 0);
-            send(client_state->sockfd, &short_size, sizeof(short_size), 0);
-            send(client_state->sockfd, send_buff, read_len, 0);
+            uint16_t read_len = read(remote_file_fd, send_buff, 200);
+            char len_buff[17] = {0};
+            stobin(len_buff, read_len);
+            if (read_len == 200)
+            {
+                send(client_state->sockfd, "M", 2, 0);
+                send(client_state->sockfd, len_buff, 17, 0);
+                send(client_state->sockfd, send_buff, read_len, 0);
+            }
+            else
+            {
+                send(client_state->sockfd, "L", 2, 0);
+                send(client_state->sockfd, len_buff, 17, 0);
+                send(client_state->sockfd, send_buff, read_len, 0);
+                break;
+            }
         }
-        send(client_state->sockfd, "L", sizeof("L"), 0);
-        uint16_t short_size = htons(read_len);
-        send(client_state->sockfd, &short_size, sizeof(short_size), 0);
-        if (read_len)
-            send(client_state->sockfd, send_buff, read_len, 0);
+        close(remote_file_fd);
         printf("done sending file\n");
         return;
     }
@@ -202,23 +228,24 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         }
         send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
         char type_header[2] = {0};
-        uint16_t pack_sz;
+        // uint16_t pack_sz;
         char recv_buffer[200];
-        recv(client_state->sockfd, type_header, sizeof(type_header), 0);
-        while (type_header[0] == 'M')
+        char pack_buff[17] = {0};
+        while (1)
         {
-            recv(client_state->sockfd, &pack_sz, sizeof(uint16_t), 0);
-            pack_sz = ntohs(pack_sz);
-            recv(client_state->sockfd, recv_buffer, pack_sz, 0);
-            write(remote_fd, recv_buffer, pack_sz);
-            recv(client_state->sockfd, type_header, sizeof(type_header), 0);
-        }
-        recv(client_state->sockfd, &pack_sz, sizeof(uint16_t), 0);
-        pack_sz = ntohs(pack_sz);
-        if (pack_sz)
-        {
-            recv(client_state->sockfd, recv_buffer, pack_sz, 0);
-            write(remote_fd, recv_buffer, pack_sz);
+            memset(recv_buffer, 0, 200);
+            memset(type_header, 0, 2);
+            memset(pack_buff, 0, 17);
+            int r1 = 0, r2 = 0, r3 = 0;
+            r1 += recv(client_state->sockfd, type_header + r1, 2, MSG_WAITALL);
+            r2 += recv(client_state->sockfd, pack_buff + r2, 17, MSG_WAITALL);
+            int pc_sz = bintoi(pack_buff);
+            r3 += recv(client_state->sockfd, recv_buffer + r3, pc_sz, MSG_WAITALL);
+            write(remote_fd, recv_buffer, pc_sz);
+            if (!strcmp(type_header, "L"))
+            {
+                break;
+            }
         }
         close(remote_fd);
         return;
