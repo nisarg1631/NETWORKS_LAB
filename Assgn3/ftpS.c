@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-const int PORT = 42424;
+const int PORT = 50000;
 const char *CMD_OPEN = "open";
 const char *CMD_user = "user";
 const char *CMD_PASS = "pass";
@@ -134,6 +134,7 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
         char current_directory[200];
         struct dirent *dir_files;
         DIR *dir = opendir(getcwd(current_directory, 200));
+        send(client_state->sockfd, SUCC_CODE, strlen(SUCC_CODE) + 1, 0);
         char send_buff[200] = {0};
         int idx = 0;
         while (dir_files = readdir(dir))
@@ -239,14 +240,13 @@ int main()
         perror("socket failed\n");
         exit(EXIT_FAILURE);
     }
-    int opt = 1;
-
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-                   &opt, sizeof(opt)))
-    {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
+    // int opt = 1;
+    // if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+    //                &opt, sizeof(opt)))
+    // {
+    //     perror("setsockopt");
+    //     exit(EXIT_FAILURE);
+    // }
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = INADDR_ANY;
     server_address.sin_port = htons(PORT);
@@ -263,15 +263,16 @@ int main()
     while (1)
     {
         client_len = sizeof(client_address);
+        printf("Hi\n");
         if ((sock = accept(server_fd, (struct sockaddr *)&client_address, &client_len)) < 0)
         {
             perror("accept");
             exit(EXIT_FAILURE);
         }
         printf("Connection Accepted\n");
-        if (!fork())
+        if (fork() == 0)
         {
-            close(server_fd);
+            // close(server_fd);
 
             CLIENT_STATE present_client_state;
             present_client_state.active_user = -1;

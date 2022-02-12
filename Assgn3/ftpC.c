@@ -151,7 +151,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
         recv(CLIENT_STATUS->sock, serv_out, 4, 0);
-        printf(" response code: %s \n", serv_out);
+        // printf(" response code: %s \n", serv_out);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             CLIENT_STATUS->pass_done = 1;
@@ -214,7 +214,10 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     }
     if (!strcmp(user_cmd, CMD_LS))
     {
+        
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
+        char serv_out[4] = {0};
+        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
         char file_buff[10] = {0};
         int packet_size = 0;
         int last_null = 0;
@@ -244,7 +247,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 break;
             }
         }
-        printf("\n");
+        // printf("\n");
         return;
     }
 
@@ -505,9 +508,9 @@ int main()
             strcpy(user_input_cpy, user_input);
             int num_args = 0;
             char **user_cmd = parse_input(user_input, &num_args);
-            printf("command parsing done\n");
+            // printf("command parsing done\n");
             command_handler(user_cmd, num_args, user_input_cpy, &CLIENT_STATUS);
-            printf("command handling done\n");
+            // printf("command handling done\n");
             while (~cnt)
                 user_input[cnt--] = 0;
             cnt = 0;
