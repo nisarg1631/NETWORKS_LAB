@@ -75,23 +75,43 @@ typedef struct
 // parses the input and returns a list with the command as the first element and its corresponding arguments after it
 char **parse_input(char *user_input, int *num_args)
 {
-    int size = 1;
+    int size = 0;
+    int state = 0;
     int i = 0;
     while (user_input[i] != '\0')
-        size += (user_input[i++] == ' ');
+    {
+        if (user_input[i] != ' ' && state == 0)
+        {
+            state = 1;
+            size++;
+        }
+        else if (user_input[i] == ' ' && state == 1)
+        {
+
+            state = 0;
+        }
+        i++;
+    }
     char **ret_string = (char **)calloc(sizeof(char *), size);
     char *pch;
     *num_args = size - 1;
     i = 0;
+    int first = 1;
     do
     {
-        if (i)
+        if (!first)
             pch = strtok(NULL, " \n");
         else
+        {
             pch = strtok(user_input, " \n");
-        ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
-        strcpy(ret_string[i], pch);
-        i++;
+            first = 0;
+        }
+        if (strlen(pch))
+        {
+            ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
+            strcpy(ret_string[i], pch);
+            i++;
+        }
     } while (pch && i < size);
     return ret_string;
 }
@@ -147,7 +167,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     {
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             CLIENT_STATUS->user_done = 1;
@@ -167,7 +187,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         }
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         // printf(" response code: %s \n", serv_out);
         if (!strcmp(serv_out, SUCC_CODE))
         {
@@ -219,7 +239,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     {
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             printf(" cd success\n");
@@ -239,7 +259,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
 
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             char file_buff[10] = {0};
@@ -290,7 +310,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
 
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             int local_fd;
@@ -347,7 +367,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         }
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             char send_buff[200] = {0};
@@ -397,7 +417,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             printf("ncmd: %s \n", ncmd);
             send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
-            recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+            recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
             if (!strcmp(serv_out, SUCC_CODE))
             {
                 int local_fd;
@@ -457,7 +477,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             printf("ncmd: %s \n", ncmd);
             send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
-            recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+            recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
             if (!strcmp(serv_out, SUCC_CODE))
             {
                 char send_buff[200] = {0};
@@ -538,6 +558,10 @@ int main()
             int num_args = 0;
             char **user_cmd = parse_input(user_input, &num_args);
             // printf("command parsing done\n");
+            // printf("%s ", user_cmd[0]);
+            // for (int i = 0; i < num_args; i++)
+            //     printf("%s ", user_cmd[i + 1]);
+
             command_handler(user_cmd, num_args, user_input_cpy, &CLIENT_STATUS);
             // printf("command handling done\n");
             while (~cnt)

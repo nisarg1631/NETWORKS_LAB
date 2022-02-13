@@ -53,23 +53,46 @@ typedef struct
 } CLIENT_STATE;
 char **parse_input(char *user_input, int *num_args)
 {
-    int size = 1;
+    int size = 0;
+    int state = 0;
     int i = 0;
     while (user_input[i] != '\0')
-        size += (user_input[i++] == ' ');
+    {
+        if (user_input[i] != ' ' && state == 0)
+        {
+            state = 1;
+            size++;
+        }
+        else if (user_input[i] == ' ' && state == 1)
+        {
+
+            state = 0;
+        }
+        i++;
+    }
     char **ret_string = (char **)calloc(sizeof(char *), size);
     char *pch;
     *num_args = size - 1;
     i = 0;
+    int first = 1;
+    printf("%d \n",size);
     do
     {
-        if (i)
+        if (!first)
+        {
             pch = strtok(NULL, " \n");
+        }
         else
+        {
             pch = strtok(user_input, " \n");
-        ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
-        strcpy(ret_string[i], pch);
-        i++;
+            first = 0;
+        }
+        if (strlen(pch))
+        {
+            ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
+            strcpy(ret_string[i], pch);
+            i++;
+        }
     } while (pch && i < size);
     return ret_string;
 }
@@ -77,6 +100,9 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
 {
     int num_args = 0;
     char **user_cmd = parse_input(recv_buffer, &num_args);
+    // printf("%s ", user_cmd[0]);
+    // for (int i = 0; i < num_args; i++)
+        // printf("%s ", user_cmd[i + 1]);
     if (!strcmp(user_cmd[0], CMD_user))
     {
         // printf("%d \n", strlen(SUCC_CODE) + 1);
