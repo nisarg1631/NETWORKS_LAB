@@ -75,7 +75,7 @@ char **parse_input(char *user_input, int *num_args)
     *num_args = size - 1;
     i = 0;
     int first = 1;
-    printf("%d \n",size);
+    // printf("%d \n", size);
     do
     {
         if (!first)
@@ -102,7 +102,7 @@ void command_handler(char *recv_buffer, CLIENT_STATE *client_state, char login_i
     char **user_cmd = parse_input(recv_buffer, &num_args);
     // printf("%s ", user_cmd[0]);
     // for (int i = 0; i < num_args; i++)
-        // printf("%s ", user_cmd[i + 1]);
+    // printf("%s ", user_cmd[i + 1]);
     if (!strcmp(user_cmd[0], CMD_user))
     {
         // printf("%d \n", strlen(SUCC_CODE) + 1);
@@ -310,7 +310,7 @@ int main()
     while (1)
     {
         client_len = sizeof(client_address);
-        printf("Hi\n");
+        // printf("Hi\n");
         if ((sock = accept(server_fd, (struct sockaddr *)&client_address, &client_len)) < 0)
         {
             perror("accept");
@@ -344,8 +344,11 @@ int main()
                     pch = strtok(NULL, " \n\t");
                 else
                     pch = strtok(login_info_buffer, " \n\t");
-                strcpy(login_info[login_idx], pch);
-                login_idx++;
+                if (strlen(pch))
+                {
+                    strcpy(login_info[login_idx], pch);
+                    login_idx++;
+                }
             } while (pch && login_idx < 4);
 
             char recv_buffer[200] = {0};
