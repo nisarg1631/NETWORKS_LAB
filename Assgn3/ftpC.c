@@ -541,6 +541,10 @@ int main()
             {
                 user_input[cnt] = '\0';
             }
+            else if(inp==',')
+            {
+                user_input[cnt++]=' ';
+            }
             else
             {
                 user_input[cnt++] = inp;
