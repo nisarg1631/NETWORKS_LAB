@@ -11,7 +11,7 @@
 
 float drop_prob = 0.1;
 const int SOCK_MRP = 42;
-
+const long T = 2'000'000'000L;
 int r_socket(int domain, int type, int protocol);
 int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
