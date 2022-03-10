@@ -1,19 +1,27 @@
 #include "rsocket.h"
 pthread_mutex_t mutex_ptr_rtable, mutex_ptr_utable;
 
+// The message tables are the simplest possible data structures because at one point no more than 50 msgs will be in them,
+// So it seems to me that the overhead of complicated data structures is not worth it. something like a Binary Search Tree can be well suited for this task , however the constatns int O(logn) would be more than the time for a naive array based solution 
+// even though the array based solution might not be asymptotically optimal.
 // Unacknowledged message table
-struct utable
+typedef struct
 {
-
-    // time_t
-    // msg_id
-    // dest_id
-    // msg_body
-};
-struct rtable
+    int msg_id;
+    struct sockaddr_in dest_addr;
+    char msg_body[52];
+    time_t t_sent;
+} umsg;
+// Received message table
+typedef struct
 {
-};
-
+    int msg_id;
+    int msg_type;
+    struct sockaddr_in src_addr;
+    char msg_body[52];
+} rmsg;
+umsg *utable;
+rmsg *rtable;
 int add_to_utable();
 int add_to_rtable();
 int remove_from_utable();
@@ -29,6 +37,8 @@ int r_socket(int domain, int type, int protocol)
 
     srand(time(NULL));
     // create tables
+    utable = (umsg *)calloc(50, sizeof(umsg));
+    rtable = (rmsg *)calloc(50, sizeof(rmsg));
     // create thread r and s
     pthread_t R, S;
     pthread_attr_t attr;
