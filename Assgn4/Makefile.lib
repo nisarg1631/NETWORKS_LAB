@@ -1,0 +1,6 @@
+rsocket.o: rsocket.c rsocket.h
+	gcc -c rsocket.c -o rsocket.o
+librsocket.a: rsocket.o
+	ar rcs librsocket.a rsocket.o
+clean:
+	rm rsocket.o librsocket.a 

@@ -1,0 +1,13 @@
+LIBS = librsocket.a -lpthread
+
+user1.o:
+    gcc $(LIBS) user1.c -o user1.o
+
+user2.o:
+    gcc $(LIBS) user2.c -o user2.o
+
+clean:
+    rm user1.o user2.o
+
+all: user1.o user2.o
+    
