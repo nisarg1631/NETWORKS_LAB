@@ -1,6 +1,6 @@
-rsocket.o: rsocket.c rsocket.h
-	gcc -c rsocket.c -o rsocket.o
 librsocket.a: rsocket.o
 	ar rcs librsocket.a rsocket.o
+rsocket.o: rsocket.c rsocket.h
+	gcc -c rsocket.c -fsanitize=thread -o rsocket.o
 clean:
-	rm rsocket.o librsocket.a 
+	rm -f rsocket.o librsocket.a 

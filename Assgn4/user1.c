@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     while (i < 50 && inp[i] != '\0')
     {
         r_sendto(sock, &inp[i], 1, 0, (struct sockaddr *)&p2_addr, sizeof(p2_addr));
+        i++;
     }
     while (1)
         ;

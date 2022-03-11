@@ -1,13 +1,10 @@
-LIBS = librsocket.a -lpthread
-
+all: user1.o user2.o
 user1.o:
-    gcc $(LIBS) user1.c -o user1.o
+	gcc user1.c -lpthread librsocket.a  -fsanitize=thread -o user1.o
 
 user2.o:
-    gcc $(LIBS) user2.c -o user2.o
+	gcc user2.c -lpthread librsocket.a -fsanitize=thread -o user2.o
 
 clean:
-    rm user1.o user2.o
-
-all: user1.o user2.o
-    
+	rm -f user1.o user2.o
+	
