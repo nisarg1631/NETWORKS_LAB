@@ -34,15 +34,19 @@ int main(int argc, char *argv[])
         perror("couldnt bind");
         exit(1);
     }
-    char buf[10]={0};
+    char buf[10] = {0};
     while (1)
     {
         int len = sizeof(p1_addr);
-        int pc=r_recvfrom(sock, buf, 10, 0, (struct sockaddr *)&p1_addr, &len);
-        for(int i=0;i<pc;i++)
+        int pc = r_recvfrom(sock, buf, 10, 0, (struct sockaddr *)&p1_addr, &len);
+        printf("Received ");
+        for (int i = 0; i < pc; i++)
         {
-            printf("%c\n",buf[i]);
+            printf("%c", buf[i]);
         }
+        struct sockaddr_in *addr_in = (struct sockaddr_in *)&p1_addr;
+        char *s = inet_ntoa(addr_in->sin_addr);
+        printf(" from ip address %s and port %d ", s, htons(addr_in->sin_port));
     }
     return 0;
 }

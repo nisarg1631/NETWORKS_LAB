@@ -30,7 +30,7 @@ int dropMessage(float p);
 typedef struct
 {
     int msg_id;
-    struct sockaddr *dest_addr;
+    struct sockaddr dest_addr;
     char msg_body[52];
     time_t t_sent;
     ssize_t len;
@@ -40,7 +40,7 @@ typedef struct
 {
     int msg_id;
     int msg_type;
-    struct sockaddr *src_addr;
+    struct sockaddr src_addr;
     char msg_body[52];
     ssize_t len;
 } rmsg;

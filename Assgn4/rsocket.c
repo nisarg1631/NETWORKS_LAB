@@ -116,6 +116,9 @@ void print_utable(utable *u)
             printf("%c", u->arr[i].msg_body[j]);
         }
         printf("   %ld", u->arr[i].t_sent);
+        // struct sockaddr_in *addr_in = (struct sockaddr_in *)u->arr[i].dest_addr;
+        // char *s = inet_ntoa(addr_in->sin_addr);
+        // printf(" IP address: %s  port: %d  ", s, htons(addr_in->sin_port));
         printf("\n");
     }
     pthread_mutex_unlock(&mutex_ptr_utable);
@@ -179,12 +182,15 @@ ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, struct sock
     //     printf("%c", buf_[i]);
     // }
     // printf("sent this\n");
+    // struct sockaddr_in *addr_in = (struct sockaddr_in *)dest_addr;
+    // char *s = inet_ntoa(addr_in->sin_addr);
+    // printf(" 187:     IP address: %s  port: %d  \n", s,htons (addr_in->sin_port));
     ssize_t ret = sendto(sockfd, buf_, len + 5, flags, dest_addr, addrlen);
     umsg *msg = (umsg *)calloc(1, sizeof(umsg));
     // create msg here
     msg->msg_id = last_used_msg_id++;
     msg->t_sent = time(NULL);
-    msg->dest_addr = dest_addr;
+    msg->dest_addr = *dest_addr;
     msg->len = len;
     for (int i = 0; i < len; i++)
         msg->msg_body[i] = ((char *)buf)[i];
@@ -223,7 +229,7 @@ ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr
             // printf("hello\n");
             for (int j = 0; j < len && j < 52; j++)
                 ((char *)buf)[j] = recv_table->arr[i].msg_body[j];
-            src_addr = recv_table->arr[i].src_addr;
+            src_addr = &recv_table->arr[i].src_addr;
             *addrlen = sizeof(struct sockaddr);
             remove_from_rtable(recv_table, recv_table->arr + i);
             print_rtable(recv_table);
@@ -247,13 +253,16 @@ void *run_thread_r(void *param)
         struct sockaddr_in src_addr;
         int addrlen = sizeof(src_addr);
         int pcsz = recvfrom(sock, buf, BUF_SIZE, 0, (struct sockaddr *)&src_addr, &addrlen);
-        printf("recevied msg\n");
+        // printf("recevied msg\n");
+        // for (int i = 0; i < pcsz; i++)
+            // printf("%c", buf[i]);
+        // printf("\n");
         if (dropMessage(drop_prob))
         {
             continue;
         }
         // process message
-        printf("received msg\n");
+        // printf("received msg\n");
         // check if it is a data message
         if (buf[0] == '0' + Data_msg)
         {
@@ -266,7 +275,7 @@ void *run_thread_r(void *param)
                 n += (buf[i] - '0');
             }
             msg->msg_id = n;
-            msg->src_addr = (struct sockaddr *)&src_addr;
+            msg->src_addr = *(struct sockaddr *)&src_addr;
             for (int i = 5; i < pcsz; i++)
                 msg->msg_body[i - 5] = buf[i];
             msg->len = pcsz - 5;
@@ -281,7 +290,7 @@ void *run_thread_r(void *param)
                 buf_[4 - i] = (n % 10) + '0';
                 n /= 10;
             }
-            printf("sending acknowledment for msg %d\n", msg->msg_id);
+            // printf("sending acknowledment for msg %d\n", msg->msg_id);
             sendto(sock, buf_, 5, 0, (struct sockaddr *)&src_addr, addrlen);
         }
         // if it is an ack message,
@@ -294,9 +303,9 @@ void *run_thread_r(void *param)
                 msg_id *= 10;
                 msg_id += (buf[i] - '0');
             }
-            printf("received ack for msg id %d\n", msg_id);
+            // printf("received ack for msg id %d\n", msg_id);
             remove_from_utable(unack_table, msg_id); // thread safe
-            print_utable(unack_table);
+            // print_utable(unack_table);
         }
         else
         {
@@ -304,6 +313,7 @@ void *run_thread_r(void *param)
                 printf("%c", buf[i]);
             printf("received malformed message\n");
         }
+        // sleep(T);
     }
 }
 void *run_thread_s(void *param)
@@ -320,7 +330,7 @@ void *run_thread_s(void *param)
         pthread_mutex_lock(&mutex_ptr_utable);
         for (int i = 0; i < unack_table->next_to_use; i++)
         {
-            if (unack_table->arr[i].t_sent + 2*T <= time(NULL))
+            if (unack_table->arr[i].t_sent + 2 * T <= time(NULL))
             {
                 // print_utable(unack_table);
                 // create buffer from msg
@@ -334,11 +344,16 @@ void *run_thread_s(void *param)
                 for (int i = 0; i < unack_table->arr[i].len; i++)
                     buf_[i + 5] = ((char *)unack_table->arr[i].msg_body)[i];
                 // resend
-                printf("resending msg id %d\n", unack_table->arr[i].msg_id);
+                // printf("resending msg id %d\n", unack_table->arr[i].msg_id);
+                // printf("sending to %s\n", unack_table->arr[i].dest_addr);
                 unack_table->arr[i].t_sent = time(NULL);
-                sendto(sock, buf_, unack_table->arr[i].len + 5, 0, unack_table->arr[i].dest_addr, sizeof(unack_table->arr[i].dest_addr));
+                sendto(sock, buf_, unack_table->arr[i].len + 5, 0, &unack_table->arr[i].dest_addr, sizeof(unack_table->arr[i].dest_addr));
             }
         }
+        if(unack_table->next_to_use>0)
+            print_utable(unack_table);
+        else 
+            printf("unack table empty\n");
         pthread_mutex_unlock(&mutex_ptr_utable);
         struct timespec req, rem;
         req.tv_sec = T;
