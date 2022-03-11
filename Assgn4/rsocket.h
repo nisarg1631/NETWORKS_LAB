@@ -11,15 +11,15 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 
-#define drop_prob 0.1
+#define drop_prob 0.5
 #define SOCK_MRP 42
-#define  T 2000000000L
+#define  T 1
 #define ACK_msg 1
 #define Data_msg 0
 
 int r_socket(int domain, int type, int protocol);
 int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
+ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, struct sockaddr *dest_addr, socklen_t addrlen);
 ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
 int r_close(int fd);
 int dropMessage(float p);
@@ -42,6 +42,7 @@ typedef struct
     int msg_type;
     struct sockaddr *src_addr;
     char msg_body[52];
+    ssize_t len;
 } rmsg;
 
 typedef struct
@@ -67,5 +68,6 @@ int add_to_rtable(rtable *r, rmsg *msg);
 int remove_from_rtable(rtable *r, rmsg *msg);
 void* run_thread_r(void *param);
 void* run_thread_s(void *param);
+time_t time_offset;
 #define BUF_SIZE 52
 #endif

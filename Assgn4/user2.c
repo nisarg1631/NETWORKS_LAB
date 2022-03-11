@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
         int pc=r_recvfrom(sock, buf, 10, 0, (struct sockaddr *)&p1_addr, &len);
         for(int i=0;i<pc;i++)
         {
-            printf("%c",buf[i]);
+            printf("%c\n",buf[i]);
         }
     }
     return 0;
