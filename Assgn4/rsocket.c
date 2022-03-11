@@ -25,12 +25,12 @@ int add_to_utable(utable *u, umsg *msg)
     pthread_mutex_unlock(&mutex_ptr_utable);
     return 1;
 };
-int remove_from_utable(utable *u, umsg *msg)
+int remove_from_utable(utable *u, int msg_id)
 {
     pthread_mutex_lock(&mutex_ptr_utable);
     for (int i = 0; i < u->next_to_use; i++)
     {
-        if (u->arr[i].msg_id == msg->msg_id)
+        if (u->arr[i].msg_id == msg_id)
         {
             for (int j = i; j + 1 < u->next_to_use; j++)
             {
@@ -125,42 +125,58 @@ ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, const struc
     char *buf_ = (char *)calloc(len + 5, sizeof(char));
     // Type of msg
     // Msg id  (assumed max 4 digits)
-    buf_[0] = Data_msg;
+    buf_[0] = '0' + Data_msg;
     int n = last_used_msg_id;
     for (int i = 0; i < 4; i++)
     {
         buf_[4 - i] = (n % 10) + '0';
         n /= 10;
     }
-    strcpy(buf_ + 5, buf);
+    for (int i = 5; i < len + 5; i++)
+    {
+        buf_[i] = ((char *)buf)[i - 5];
+    }
     ssize_t ret = sendto(sockfd, buf_, len + 5, flags, dest_addr, addrlen);
     umsg *msg = (umsg *)calloc(1, sizeof(umsg));
     // create msg here
     msg->msg_id = last_used_msg_id++;
     msg->t_sent = time(0);
     msg->dest_addr = dest_addr;
-    strcpy(msg->msg_body, buf);
-    add_to_utable(unack_table, msg);
+    msg->len = len;
+    for (int i = 0; i < len; i++)
+        msg->msg_body[i] = ((char *)buf)[i];
+    add_to_utable(unack_table, msg); // this is a thread safe operation
     return ret;
 }
 ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen)
 {
     if (recv_table->next_to_use > 0) // rtable is non empty
     {
-        pthread_mutex_lock(&mutex_ptr_rtable);
-        // take the first message in rtable
+        // take the first data message in rtable
         // remove it from rtable
-        pthread_mutex_unlock(&mutex_ptr_rtable);
         // return the message
+        pthread_mutex_lock(&mutex_ptr_rtable);
+        for (int i = 0; i < recv_table->next_to_use; i++)
+        {
+            if (recv_table->arr[i].msg_type == '0' + Data_msg)
+            {
+                for (int j = 0; j < len && j < 52; j++)
+                    ((char *)buf)[j] = recv_table->arr[i].msg_body[j];
+                src_addr = recv_table->arr[i].src_addr;
+                *addrlen = sizeof(struct sockaddr);
+                remove_from_rtable(recv_table, recv_table->arr + i);
+                pthread_mutex_unlock(&mutex_ptr_rtable);
+                return strlen(buf);
+            }
+        }
+        pthread_mutex_unlock(&mutex_ptr_rtable);
     }
-    else
-    {
-        struct timespec req, rem;
-        req.tv_sec = 0;
-        req.tv_nsec = T;
-        nanosleep(&req, &rem);
-        r_recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
-    }
+    // no data msg found, so block
+    struct timespec req, rem;
+    req.tv_sec = 0;
+    req.tv_nsec = T;
+    nanosleep(&req, &rem);
+    r_recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
 }
 void run_thread_r(void *param)
 {
@@ -182,18 +198,45 @@ void run_thread_r(void *param)
         }
         // process message
         // check if it is a data message
-        if ()
+        if (buf[0] == '0' + Data_msg)
         {
-            pthread_mutex_lock(&mutex_ptr_rtable);
-            //  add to rtable
-            add_to_rtable();
-            pthread_mutex_unlock(&mutex_ptr_rtable);
+            rmsg *msg = (rmsg *)calloc(1, sizeof(rmsg));
+            msg->msg_type = buf[0] - '0';
+            int n = 0;
+            for (int i = 1; i <= 4; i++)
+            {
+                n += (buf[i] - '0');
+                n *= 10;
+            }
+            msg->msg_id = n;
+            msg->src_addr = (struct sockaddr *)&src_addr;
+            for (int i = 5; i < pcsz; i++)
+                msg->msg_body[i - 5] = buf[i];
+
+            add_to_rtable(recv_table, msg); // thread safe
+
+            // create and send ack
+            char buf_[5];
+            buf_[0] = '0' + ACK_msg;
+            int n = msg->msg_id;
+            for (int i = 1; i <= 4; i++)
+            {
+                buf_[4 - i] = (n % 10) + '0';
+                n /= 10;
+            }
+            sendto(sock, buf_, 5, 0, (struct sockaddr *)&src_addr, addrlen);
         }
         // if it is an ack message,
-        else if ()
+        else if (buf[0] == '0' + ACK_msg)
         {
             //  remove from utable
-            remove_from_utable();
+            int msg_id = 0;
+            for (int i = 1; i <= 4; i++)
+            {
+                msg_id += (buf[i] - '0');
+                msg_id *= 10;
+            }
+            remove_from_utable(unack_table, msg_id); // thread safe
         }
         else
         {
@@ -207,13 +250,32 @@ void run_thread_s(void *param)
     // the messages timeout period (set to 2T ) is over (from the difference between the time in
     // the table entry for a message and the current time). If yes, it retransmits that message and
     // resets the time in that entry of the table to the new sending time.
+    int *sockptr = (int *)param;
+    int sock = *sockptr;
+    char buf_[BUF_SIZE + 5] = {0};
     while (1)
     {
         pthread_mutex_lock(&mutex_ptr_utable);
-        // scan the unacknowledged-message table
-        // if the time is over, resend the message
+        for (int i = 0; i < unack_table->next_to_use; i++)
+        {
+            if (unack_table->arr[i].t_sent + 2 * T <= time(0))
+            {
+                // create buffer from msg
+                buf_[0] = '0' + Data_msg;
+                int n = unack_table->arr[i].msg_id;
+                for (int i = 0; i < 4; i++)
+                {
+                    buf_[4 - i] = (n % 10) + '0';
+                    n /= 10;
+                }
+                for (int i = 5; i < unack_table->arr[i].len + 5; i++)
+                    buf_[i] = ((char *)unack_table->arr[i].msg_body)[i - 5];
+                // resend
+                sendto(sock, buf_, unack_table->arr[i].len + 5, 0, unack_table->arr[i].dest_addr, sizeof(unack_table->arr[i].dest_addr));
+                unack_table->arr[i].t_sent = time(0);
+            }
+        }
         pthread_mutex_unlock(&mutex_ptr_utable);
-
         struct timespec req, rem;
         req.tv_sec = 0;
         req.tv_nsec = T;

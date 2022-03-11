@@ -29,6 +29,7 @@ typedef struct
     struct sockaddr *dest_addr;
     char msg_body[52];
     time_t t_sent;
+    ssize_t len;
 } umsg;
 // Received message table
 typedef struct
