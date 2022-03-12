@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 
-#define drop_prob 0.5
+#define drop_prob 0.50
 #define SOCK_MRP 42
 #define  T 1
 #define ACK_msg 1

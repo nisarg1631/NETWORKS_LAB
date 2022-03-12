@@ -4,6 +4,7 @@ pthread_mutex_t mutex_ptr_rtable, mutex_ptr_utable;
 utable *unack_table = NULL;
 rtable *recv_table = NULL;
 int last_used_msg_id = 0;
+int NUM_TRANS = 0;
 void init_utable(utable *u, int s)
 {
     pthread_mutex_lock(&mutex_ptr_utable);
@@ -232,7 +233,7 @@ ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr
             src_addr = &recv_table->arr[i].src_addr;
             *addrlen = sizeof(struct sockaddr);
             remove_from_rtable(recv_table, recv_table->arr + i);
-            print_rtable(recv_table);
+            // print_rtable(recv_table);
             pthread_mutex_unlock(&mutex_ptr_rtable);
             return strlen(buf);
         }
@@ -253,9 +254,9 @@ void *run_thread_r(void *param)
         struct sockaddr_in src_addr;
         int addrlen = sizeof(src_addr);
         int pcsz = recvfrom(sock, buf, BUF_SIZE, 0, (struct sockaddr *)&src_addr, &addrlen);
-        // printf("recevied msg\n");
+        printf("recevied msg number %d\n", NUM_TRANS++);
         // for (int i = 0; i < pcsz; i++)
-            // printf("%c", buf[i]);
+        // printf("%c", buf[i]);
         // printf("\n");
         if (dropMessage(drop_prob))
         {
@@ -280,7 +281,7 @@ void *run_thread_r(void *param)
                 msg->msg_body[i - 5] = buf[i];
             msg->len = pcsz - 5;
             add_to_rtable(recv_table, msg); // thread safe
-            print_rtable(recv_table);
+            // print_rtable(recv_table);
             // create and send ack
             char buf_[5];
             buf_[0] = '0' + ACK_msg;
@@ -330,7 +331,7 @@ void *run_thread_s(void *param)
         pthread_mutex_lock(&mutex_ptr_utable);
         for (int i = 0; i < unack_table->next_to_use; i++)
         {
-            if (unack_table->arr[i].t_sent + 2 * T <= time(NULL))
+            if (unack_table->arr[i].t_sent + 2 * T < time(NULL))
             {
                 // print_utable(unack_table);
                 // create buffer from msg
@@ -350,10 +351,10 @@ void *run_thread_s(void *param)
                 sendto(sock, buf_, unack_table->arr[i].len + 5, 0, &unack_table->arr[i].dest_addr, sizeof(unack_table->arr[i].dest_addr));
             }
         }
-        if(unack_table->next_to_use>0)
+        if (unack_table->next_to_use > 0)
             print_utable(unack_table);
-        else 
-            printf("unack table empty\n");
+        // else
+            // printf("unack table empty\n");
         pthread_mutex_unlock(&mutex_ptr_utable);
         struct timespec req, rem;
         req.tv_sec = T;
