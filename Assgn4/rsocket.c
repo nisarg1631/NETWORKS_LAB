@@ -246,8 +246,8 @@ int rclose(int sockfd)
     pthread_kill(S, SIGHUP);
     free(unack_table);
     free(recv_table);
-    int ret= close(sockfd);
-    // close should be after the threads are killed else they will try to access a closed filedescriptor 
+    int ret = close(sockfd);
+    // close should be after the threads are killed else they will try to access a closed filedescriptor
     // similarly free should be after the threads are killed
     return ret;
 }
@@ -366,7 +366,7 @@ void *run_thread_s(void *param)
             // print_utable(unack_table);
             printf("unack table size %d\n", unack_table->next_to_use);
         // else
-            // printf("unack table empty\n");
+        // printf("unack table empty\n");
         pthread_mutex_unlock(&mutex_ptr_utable);
         struct timespec req, rem;
         req.tv_sec = T;
