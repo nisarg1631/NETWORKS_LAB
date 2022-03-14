@@ -1,10 +1,10 @@
 all: user1.o user2.o
+
 user1.o:
-	gcc user1.c -lpthread librsocket.a  -fsanitize=thread -o user1.o
+	gcc user1.c -fsanitize=thread -o user1.o -L. -lrsocket -lpthread
 
 user2.o:
-	gcc user2.c -lpthread librsocket.a -fsanitize=thread -o user2.o
+	gcc user2.c -fsanitize=thread -o user2.o -L. -lrsocket -lpthread
 
 clean:
 	rm -f user1.o user2.o
-	
