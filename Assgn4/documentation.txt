@@ -22,7 +22,7 @@ all values from a single run
 |----------------------------------------------------------------------------------------------------------------------------
 | 0.30 |                 55                  |                   73                   |                 1.97                |
 |----------------------------------------------------------------------------------------------------------------------------
-| 0.35 |                 53                  |-                  76                   |                 2.05                | 
+| 0.35 |                 53                  |                   76                   |                 2.05                | 
 |----------------------------------------------------------------------------------------------------------------------------
 | 0.40 |                 54                  |                   89                   |                 2.40                |
 |----------------------------------------------------------------------------------------------------------------------------
@@ -34,11 +34,12 @@ all values from a single run
 average number of messages user2 receives (dropped and undropped) increases with increasing the probability of dropMsg
 
 Message Format:
-0/1 + XXXX + text
-first bit 0/1 tells the type of message (acknowledgement or data)
+first bit 0 tells the type of message (data)
 bits 1,2,3,4 together give the 4 digit message id of the message
 next bits is the message 
-
+    Data Message: 0 + XXXX + text
+    Ack Message: 1 + XXXX 
+Ack messages are always of length 5, length of data messages is 5+len(msg_user)
 Datastructures Used:
 1) umsg: Unacknowledged message 
     typedef struct
@@ -107,19 +108,23 @@ Backend functions:
     1) int dropMessage(float p);
         returns 1 with probability p
     2) void init_utable(utable *u, int s);
-        initialises the unacknowledged message table *u of size s
+        initialises the unacknowledged message table pointed to by u of size s
     3) int add_to_utable(utable *u, umsg *msg);
-        adds to the unacknowledged message table *u, entry *msg
+        adds to the unacknowledged message table pointed to by u, entry *msg
     4) int remove_from_utable(utable *u, int msg_id);
-        removes from the unacknowledged message table *u, entry *msg
+        removes from the unacknowledged message table pointed to by u, entry *msg
     5) void init_rtable(rtable *r, int s);
-        initialises the received message table *r of size s
+        initialises the received message table pointed to by r  of size s
     6) int add_to_rtable(rtable *r, rmsg *msg);
-        adds to the received message table *r, entry *msg
+        adds to the received message table pointed to by r, entry *msg
     7) int remove_from_rtable(rtable *r, rmsg *msg);
-        removes from the received message table *r, entry *msg
+        removes from the received message table pointed to by r, entry *msg
     8) void* run_thread_r(void *param);
         the funtion thread R executes
     9) void* run_thread_s(void *param);
         the funtion thread S executes
+    10) void print_rtable(rtable *r)
+        prints the received message table pointed to by r 
+    11) void print_utable(utable *u)
+        prints the unacknowledged message table pointed to by u     
 
