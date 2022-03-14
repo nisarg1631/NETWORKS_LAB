@@ -90,20 +90,36 @@ Datastructures Used:
     2) next_to_use: index of arr free for use
     3) arr: array of rmsg
 
+Functions used:
+User facing:
+    1) int r_socket(int domain, int type, int protocol);
+        Used for creating a socket, calls socket(), also initialses the tables, mutexes and threads
+    2) int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+        Binds to the given address using bind()
+    3) ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, struct sockaddr *dest_addr, socklen_t addrlen);
+        Takes buf, prepends message header and sends it to the destination, adds this message to the unacknowledged message table
+    4) ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+        Takes the first message in the received message table and returns it in buf, blocks until the table has an entry
+    5) int r_close(int fd);
+        Closes the connection, by closing the file descriptor, killing the thread and freeing memory
 
-int r_socket(int domain, int type, int protocol);
-int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, struct sockaddr *dest_addr, socklen_t addrlen);
-ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
-int r_close(int fd);
-int dropMessage(float p);
-
-void init_utable(utable *u, int s);
-int add_to_utable(utable *u, umsg *msg);
-int remove_from_utable(utable *u, int msg_id);
-void init_rtable(rtable *r, int s);
-int add_to_rtable(rtable *r, rmsg *msg);
-int remove_from_rtable(rtable *r, rmsg *msg);
-void* run_thread_r(void *param);
-void* run_thread_s(void *param);
+Backend functions:
+    1) int dropMessage(float p);
+        returns 1 with probability p
+    2) void init_utable(utable *u, int s);
+        initialises the unacknowledged message table *u of size s
+    3) int add_to_utable(utable *u, umsg *msg);
+        adds to the unacknowledged message table *u, entry *msg
+    4) int remove_from_utable(utable *u, int msg_id);
+        removes from the unacknowledged message table *u, entry *msg
+    5) void init_rtable(rtable *r, int s);
+        initialises the received message table *r of size s
+    6) int add_to_rtable(rtable *r, rmsg *msg);
+        adds to the received message table *r, entry *msg
+    7) int remove_from_rtable(rtable *r, rmsg *msg);
+        removes from the received message table *r, entry *msg
+    8) void* run_thread_r(void *param);
+        the funtion thread R executes
+    9) void* run_thread_s(void *param);
+        the funtion thread S executes
 
