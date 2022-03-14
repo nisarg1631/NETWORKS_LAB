@@ -209,7 +209,7 @@ ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr
         {
             struct timespec req, rem;
             req.tv_sec = T;
-            req.tv_nsec = 0;
+            req.tv_nsec = T_ns;
             nanosleep(&req, &rem);
         }
         if (flag_first)
@@ -337,13 +337,13 @@ void *run_thread_s(void *param)
                 // create buffer from msg
                 buf_[0] = '0' + Data_msg;
                 int n = unack_table->arr[i].msg_id;
-                for (int i = 0; i < 4; i++)
+                for (int j = 0; j < 4; j++)
                 {
-                    buf_[4 - i] = (n % 10) + '0';
+                    buf_[4 - j] = (n % 10) + '0';
                     n /= 10;
                 }
-                for (int i = 0; i < unack_table->arr[i].len; i++)
-                    buf_[i + 5] = ((char *)unack_table->arr[i].msg_body)[i];
+                for (int j = 0; j < unack_table->arr[i].len; j++)
+                    buf_[j + 5] = ((char *)unack_table->arr[i].msg_body)[j];
                 // resend
                 // printf("resending msg id %d\n", unack_table->arr[i].msg_id);
                 // printf("sending to %s\n", unack_table->arr[i].dest_addr);
@@ -352,13 +352,14 @@ void *run_thread_s(void *param)
             }
         }
         if (unack_table->next_to_use > 0)
-            print_utable(unack_table);
+            // print_utable(unack_table);
+            printf("unack table size %d\n", unack_table->next_to_use);
         // else
             // printf("unack table empty\n");
         pthread_mutex_unlock(&mutex_ptr_utable);
         struct timespec req, rem;
         req.tv_sec = T;
-        req.tv_nsec = 0;
+        req.tv_nsec = T_ns;
         nanosleep(&req, &rem);
     }
 }

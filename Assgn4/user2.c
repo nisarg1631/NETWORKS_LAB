@@ -44,9 +44,10 @@ int main(int argc, char *argv[])
         {
             printf("%c", buf[i]);
         }
-        struct sockaddr_in *addr_in = (struct sockaddr_in *)&p1_addr;
-        char *s = inet_ntoa(addr_in->sin_addr);
-        printf(" from ip address %s and port %d \n", s, htons(addr_in->sin_port));
+        printf("\n");
+        // struct sockaddr_in *addr_in = (struct sockaddr_in *)&p1_addr;
+        // char *s = inet_ntoa(addr_in->sin_addr);
+        // printf(" from ip address %s and port %d \n", s, htons(addr_in->sin_port));
     }
     return 0;
 }
