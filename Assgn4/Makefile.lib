@@ -1,0 +1,6 @@
+librsocket.a: rsocket.o
+	ar rcs librsocket.a rsocket.o
+rsocket.o: rsocket.c rsocket.h
+	gcc -c rsocket.c -lpthread -fsanitize=thread -o rsocket.o
+clean:
+	rm -f rsocket.o librsocket.a 

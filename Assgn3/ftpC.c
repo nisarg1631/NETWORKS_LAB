@@ -28,8 +28,25 @@ const char *FAIL_COMAND_ORDER = "600";
 
 const int MIN_PORT = 20000;
 const int MAX_PORT = 65535;
-const int CHUNK_SIZE = 200  ;
+const int CHUNK_SIZE = 200;
 
+void stobin(char *str, uint16_t n)
+{
+    uint16_t i = 0;
+    int idx = 0;
+    for (i = 1 << 15; i > 0; i = i / 2)
+    {
+        if (n & i)
+            str[idx++] = '1';
+        else
+            str[idx++] = '0';
+    }
+    str[16] = '\0';
+}
+int bintoi(char *str)
+{
+    return (int)strtol(str, NULL, 2);
+}
 typedef struct
 {
     int open_done;
@@ -58,23 +75,43 @@ typedef struct
 // parses the input and returns a list with the command as the first element and its corresponding arguments after it
 char **parse_input(char *user_input, int *num_args)
 {
-    int size = 1;
+    int size = 0;
+    int state = 0;
     int i = 0;
     while (user_input[i] != '\0')
-        size += (user_input[i++] == ' ');
+    {
+        if (user_input[i] != ' ' && state == 0)
+        {
+            state = 1;
+            size++;
+        }
+        else if (user_input[i] == ' ' && state == 1)
+        {
+
+            state = 0;
+        }
+        i++;
+    }
     char **ret_string = (char **)calloc(sizeof(char *), size);
     char *pch;
     *num_args = size - 1;
     i = 0;
+    int first = 1;
     do
     {
-        if (i)
+        if (!first)
             pch = strtok(NULL, " \n");
         else
+        {
             pch = strtok(user_input, " \n");
-        ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
-        strcpy(ret_string[i], pch);
-        i++;
+            first = 0;
+        }
+        if (strlen(pch))
+        {
+            ret_string[i] = (char *)calloc(sizeof(char), sizeof(pch));
+            strcpy(ret_string[i], pch);
+            i++;
+        }
     } while (pch && i < size);
     return ret_string;
 }
@@ -130,7 +167,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     {
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             CLIENT_STATUS->user_done = 1;
@@ -150,7 +187,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         }
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         // printf(" response code: %s \n", serv_out);
         if (!strcmp(serv_out, SUCC_CODE))
         {
@@ -170,6 +207,11 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     }
     if (!strcmp(user_cmd, CMD_LCD))
     {
+        if (!CLIENT_STATUS->pass_done)
+        {
+            printf("You must first login\n");
+            return;
+        }
         if (num_args < 1)
         {
             printf("Malformed lcd cmd, format lcd <dir_name>\n");
@@ -197,7 +239,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
     {
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             printf(" cd success\n");
@@ -217,7 +259,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
 
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             char file_buff[10] = {0};
@@ -268,7 +310,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
 
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
             int local_fd;
@@ -279,22 +321,25 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 return;
             }
             char type_header[2] = {0};
-            uint16_t pack_sz;
+            // uint16_t pack_sz;
             char recv_buffer[200];
-
-            recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
-            while (type_header[0] == 'M')
+            char pack_buff[17] = {0};
+            while (1)
             {
-                recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
-                pack_sz = ntohs(pack_sz);
-                recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-                write(local_fd, recv_buffer, pack_sz);
-                recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
+                memset(recv_buffer, 0, 200);
+                memset(type_header, 0, 2);
+                memset(pack_buff, 0, 17);
+                int r1 = 0, r2 = 0, r3 = 0;
+                r1 += recv(CLIENT_STATUS->sock, type_header + r1, 2, MSG_WAITALL);
+                r2 += recv(CLIENT_STATUS->sock, pack_buff + r2, 17, MSG_WAITALL);
+                int pc_sz = bintoi(pack_buff);
+                r3 += recv(CLIENT_STATUS->sock, recv_buffer + r3, pc_sz, MSG_WAITALL);
+                write(local_fd, recv_buffer, pc_sz);
+                if (!strcmp(type_header, "L"))
+                {
+                    break;
+                }
             }
-            recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
-            pack_sz = ntohs(pack_sz);
-            recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-            write(local_fd, recv_buffer, pack_sz);
             close(local_fd);
             printf("get done\n");
             return;
@@ -322,35 +367,32 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
         }
         send(CLIENT_STATUS->sock, raw_cmd, strlen(raw_cmd) + 1, 0);
         char serv_out[4] = {0};
-        recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+        recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
         if (!strcmp(serv_out, SUCC_CODE))
         {
-            int L_sent = 0;
             char send_buff[200] = {0};
             int read_len = 0;
-            while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
+            int L_sent = 0;
+            while (1)
             {
-                if (read_len < CHUNK_SIZE)
+                uint16_t read_len = read(local_fd, send_buff, 200);
+                char len_buff[17] = {0};
+                stobin(len_buff, read_len);
+                if (read_len == 200)
                 {
-                    send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                    L_sent = 1;
+                    send(CLIENT_STATUS->sock, "M", 2, 0);
+                    send(CLIENT_STATUS->sock, len_buff, 17, 0);
+                    send(CLIENT_STATUS->sock, send_buff, read_len, 0);
                 }
                 else
                 {
-                    send(CLIENT_STATUS->sock, "M", sizeof("M"), 0);
-                }
-                uint16_t short_size = htons(read_len);
-                send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
-                send(CLIENT_STATUS->sock, send_buff, read_len, 0);
-            }
-            if (!L_sent)
-            {
-                send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                uint16_t short_size = htons(read_len);
-                send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
-                if (read_len)
+                    send(CLIENT_STATUS->sock, "L", 2, 0);
+                    send(CLIENT_STATUS->sock, len_buff, 17, 0);
                     send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+                    break;
+                }
             }
+            printf("done sending file\n");
         }
         else if (!strcmp(serv_out, FAIL_CODE))
         {
@@ -375,7 +417,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             printf("ncmd: %s \n", ncmd);
             send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
-            recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+            recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
             if (!strcmp(serv_out, SUCC_CODE))
             {
                 int local_fd;
@@ -386,29 +428,25 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                     return;
                 }
                 char type_header[2] = {0};
-                uint16_t pack_sz;
-                int szz = 0;
                 char recv_buffer[200];
-                recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
-                while (type_header[0] == 'M')
+                char pack_buff[17] = {0};
+                while (1)
                 {
-                    recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
-                    szz = ntohs(pack_sz);
-                    recv(CLIENT_STATUS->sock, recv_buffer, szz, 0);
-                    write(local_fd, recv_buffer, szz);
-                    recv(CLIENT_STATUS->sock, type_header, sizeof(type_header), 0);
+                    memset(recv_buffer, 0, 200);
+                    memset(type_header, 0, 2);
+                    memset(pack_buff, 0, 17);
+                    int r1 = 0, r2 = 0, r3 = 0;
+                    r1 += recv(CLIENT_STATUS->sock, type_header + r1, 2, MSG_WAITALL);
+                    r2 += recv(CLIENT_STATUS->sock, pack_buff + r2, 17, MSG_WAITALL);
+                    int pc_sz = bintoi(pack_buff);
+                    r3 += recv(CLIENT_STATUS->sock, recv_buffer + r3, pc_sz, MSG_WAITALL);
+                    write(local_fd, recv_buffer, pc_sz);
+                    if (!strcmp(type_header, "L"))
+                    {
+                        break;
+                    }
                 }
-                printf(" done with  m %c\n", type_header[0]);
-                recv(CLIENT_STATUS->sock, &pack_sz, sizeof(uint16_t), 0);
-                pack_sz = ntohs(pack_sz);
-                if (pack_sz)
-                {
-                    recv(CLIENT_STATUS->sock, recv_buffer, pack_sz, 0);
-                    write(local_fd, recv_buffer, pack_sz);
-                }
-                printf(" done with  L\n");
                 close(local_fd);
-                printf("done with this command\n");
             }
             else
             {
@@ -418,6 +456,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 return;
             }
         }
+        printf("done with this command\n");
         return;
     }
     if (!strcmp(user_cmd, CMD_MPUT))
@@ -438,36 +477,32 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
             printf("ncmd: %s \n", ncmd);
             send(CLIENT_STATUS->sock, ncmd, strlen(ncmd) + 1, 0);
             char serv_out[4] = {0};
-            recv(CLIENT_STATUS->sock, serv_out, 4, 0);
+            recv(CLIENT_STATUS->sock, serv_out, 4, MSG_WAITALL);
             if (!strcmp(serv_out, SUCC_CODE))
             {
-                int L_sent = 0;
                 char send_buff[200] = {0};
                 int read_len = 0;
-                while ((read_len = read(local_fd, send_buff, CHUNK_SIZE)) > 0)
+                int L_sent = 0;
+                while (1)
                 {
-                    if (read_len < CHUNK_SIZE)
+                    uint16_t read_len = read(local_fd, send_buff, 200);
+                    char len_buff[17] = {0};
+                    stobin(len_buff, read_len);
+                    if (read_len == 200)
                     {
-                        send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                        L_sent = 1;
+                        send(CLIENT_STATUS->sock, "M", 2, 0);
+                        send(CLIENT_STATUS->sock, len_buff, 17, 0);
+                        send(CLIENT_STATUS->sock, send_buff, read_len, 0);
                     }
                     else
                     {
-                        send(CLIENT_STATUS->sock, "M", sizeof("M"), 0);
-                    }
-                    uint16_t short_size = htons(read_len);
-                    send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
-                    send(CLIENT_STATUS->sock, send_buff, read_len, 0);
-                }
-                if (!L_sent)
-                {
-                    send(CLIENT_STATUS->sock, "L", sizeof("L"), 0);
-                    uint16_t short_size = htons(read_len);
-                    send(CLIENT_STATUS->sock, &short_size, sizeof(short_size), 0);
-                    if (read_len)
+                        send(CLIENT_STATUS->sock, "L", 2, 0);
+                        send(CLIENT_STATUS->sock, len_buff, 17, 0);
                         send(CLIENT_STATUS->sock, send_buff, read_len, 0);
+                        break;
+                    }
                 }
-                close(local_fd);
+                printf("Done with put\n");
             }
             else
             {
@@ -476,6 +511,7 @@ void command_handler(char **cmd_and_args, int num_args, char *raw_cmd, client_st
                 return;
             }
         }
+        printf("done with mput\n");
         return;
     }
     printf("Enter a valid command\n");
@@ -505,6 +541,10 @@ int main()
             {
                 user_input[cnt] = '\0';
             }
+            else if(inp==',')
+            {
+                user_input[cnt++]=' ';
+            }
             else
             {
                 user_input[cnt++] = inp;
@@ -522,6 +562,10 @@ int main()
             int num_args = 0;
             char **user_cmd = parse_input(user_input, &num_args);
             // printf("command parsing done\n");
+            // printf("%s ", user_cmd[0]);
+            // for (int i = 0; i < num_args; i++)
+            //     printf("%s ", user_cmd[i + 1]);
+
             command_handler(user_cmd, num_args, user_input_cpy, &CLIENT_STATUS);
             // printf("command handling done\n");
             while (~cnt)

@@ -1,0 +1,130 @@
+
+
+string sent = "distributedstoachasticgradientdescent"
+length = 37
+all values from a single run
+
+----------------------------------------------------------------------------------------------------------------------------
+|  p   |  number of messages user1 receives  |   number of messages user2 receives    |   average number of messages        |
+|      |      (dropped + undropped acks)     |         (dropped + undropped msg)      |          user2 receives             |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.00 |                 37                  |                   37                   |                 1.0                 |
+| ---------------------------------------------------------------------------------------------------------------------------
+| 0.05 |                 39                  |                   39                   |                 1.05                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.10 |                 43                  |                   48                   |                 1.30                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.15 |                 43                  |                   51                   |                 1.38                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.20 |                 44                  |                   57                   |                 1.54                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.25 |                 49                  |                   67                   |                 1.81                | 
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.30 |                 55                  |                   73                   |                 1.97                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.35 |                 53                  |                   76                   |                 2.05                | 
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.40 |                 54                  |                   89                   |                 2.40                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.45 |                 57                  |                   112                  |                 3.02                |
+|----------------------------------------------------------------------------------------------------------------------------
+| 0.50 |                 57                  |                   120                  |                 3.24                |
+-----------------------------------------------------------------------------------------------------------------------------
+
+average number of messages user2 receives (dropped and undropped) increases with increasing the probability of dropMsg
+
+Message Format:
+first bit 0 tells the type of message (data)
+bits 1,2,3,4 together give the 4 digit message id of the message
+next bits is the message 
+    Data Message: 0 + XXXX + text
+    Ack Message: 1 + XXXX 
+Ack messages are always of length 5, length of data messages is 5+len(msg_user)
+Datastructures Used:
+1) umsg: Unacknowledged message 
+    typedef struct
+    {
+        int msg_id;
+        struct sockaddr dest_addr;
+        char msg_body[52];
+        time_t t_sent;
+        ssize_t len;
+    } umsg;
+    1) msg_id: consists of the message number of the message (maximum 4 digits)
+    2) dest_addr: consists information about the destination of the unacknowledged message
+    3) msg_body: consists of the raw msg passed in the buf field of r_sendto, when actually sending the msg, msg_body is prepended with information
+    4) len: length of the msg_body
+    5) t_sent: time the message was sent
+2) rmsg: Received message
+    typedef struct
+    {
+        int msg_id;
+        int msg_type;
+        struct sockaddr src_addr;
+        char msg_body[52];
+        ssize_t len;
+    } rmsg;
+    same as umsg except for time
+    1) msg_id: consists of the message number of the message (maximum 4 digits)
+    2) src_addr: consists information about the source of the message
+    3) msg_body: consists of the raw msg this is what is given to the user via the buf parameter of r_recvfrom
+    4) len: length of the msg_body
+    5) msg_type: 0 for ack, 1 for data 
+3) utable: Unacknowledged Message Table
+    typedef struct
+    {
+        int size;
+        int next_to_use;
+        umsg *arr;
+    } utable;
+    1) size: Maximum size of the table: set to 75
+    2) next_to_use: index of arr free for use
+    3) arr: array of umsg
+4) rtable: Received Message Table
+    typedef struct
+    {
+        int size;
+        int next_to_use;
+        rmsg *arr;
+    } rtable;
+    1) size: Maximum size of the table: set to 75
+    2) next_to_use: index of arr free for use
+    3) arr: array of rmsg
+
+Functions used:
+User facing:
+    1) int r_socket(int domain, int type, int protocol);
+        Used for creating a socket, calls socket(), also initialses the tables, mutexes and threads
+    2) int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+        Binds to the given address using bind()
+    3) ssize_t r_sendto(int sockfd, const void *buf, size_t len, int flags, struct sockaddr *dest_addr, socklen_t addrlen);
+        Takes buf, prepends message header and sends it to the destination, adds this message to the unacknowledged message table
+    4) ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+        Takes the first message in the received message table and returns it in buf, blocks until the table has an entry
+    5) int r_close(int fd);
+        Closes the connection, by closing the file descriptor, killing the thread and freeing memory
+
+Backend functions:
+    1) int dropMessage(float p);
+        returns 1 with probability p
+    2) void init_utable(utable *u, int s);
+        initialises the unacknowledged message table pointed to by u of size s
+    3) int add_to_utable(utable *u, umsg *msg);
+        adds to the unacknowledged message table pointed to by u, entry *msg
+    4) int remove_from_utable(utable *u, int msg_id);
+        removes from the unacknowledged message table pointed to by u, entry *msg
+    5) void init_rtable(rtable *r, int s);
+        initialises the received message table pointed to by r  of size s
+    6) int add_to_rtable(rtable *r, rmsg *msg);
+        adds to the received message table pointed to by r, entry *msg
+    7) int remove_from_rtable(rtable *r, rmsg *msg);
+        removes from the received message table pointed to by r, entry *msg
+    8) void* run_thread_r(void *param);
+        the funtion thread R executes
+    9) void* run_thread_s(void *param);
+        the funtion thread S executes
+    10) void print_rtable(rtable *r)
+        prints the received message table pointed to by r 
+    11) void print_utable(utable *u)
+        prints the unacknowledged message table pointed to by u     
+
