@@ -3,9 +3,10 @@
 string sent = "distributedstoachasticgradientdescent"
 length = 37
 all values from a single run
+
 ----------------------------------------------------------------------------------------------------------------------------
-|  p   |  number of messages user1 receives  |   number of messages user2 receives    |   average number of user2 receives  |
-|      |      (dropped + undropped acks)     |         (dropped + undropped msg)      |                                     |
+|  p   |  number of messages user1 receives  |   number of messages user2 receives    |   average number of messages        |
+|      |      (dropped + undropped acks)     |         (dropped + undropped msg)      |          user2 receives             |
 |----------------------------------------------------------------------------------------------------------------------------
 | 0.00 |                 37                  |                   37                   |                 1.0                 |
 | ---------------------------------------------------------------------------------------------------------------------------
@@ -29,3 +30,25 @@ all values from a single run
 |----------------------------------------------------------------------------------------------------------------------------
 | 0.50 |                 57                  |                   120                  |                 3.24                |
 -----------------------------------------------------------------------------------------------------------------------------
+
+average number of messages user2 receives (dropped and undropped) increases with increasing the probability of dropMsg
+
+
+Datastructures Used:
+1) umsg: Unacknowledged message 
+    typedef struct
+    {
+        int msg_id;
+        struct sockaddr dest_addr;
+        char msg_body[52];
+        time_t t_sent;
+        ssize_t len;
+    } umsg;
+    1) msg_id: consists of the message number of the message (maximum 4 digits)
+    2) dest_addr: consists information about the destination of the unacknowledged message
+    3) msg_body: consists of the raw msg passed in the buf field of r_sendto, when actually sending the msg, msg_body is prepended with information
+    4) len: length of the msg_body
+    5) 
+2) utable ->
+3) rmsg ->
+4) rtable ->

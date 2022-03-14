@@ -10,13 +10,14 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
-
+#include<signal.h>
 #define drop_prob 0.05
 #define SOCK_MRP 42
 #define  T 2
 #define T_ns 0
 #define ACK_msg 1
 #define Data_msg 0
+pthread_t R, S;
 
 int r_socket(int domain, int type, int protocol);
 int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);

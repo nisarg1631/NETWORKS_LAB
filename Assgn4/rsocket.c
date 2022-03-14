@@ -150,7 +150,6 @@ int r_socket(int domain, int type, int protocol)
     int sock = socket(domain, SOCK_DGRAM, protocol);
 
     // create thread r and s
-    pthread_t R, S;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_create(&R, &attr, run_thread_r, (void *)&sock);
@@ -239,6 +238,18 @@ ssize_t r_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr
         }
     }
     pthread_mutex_unlock(&mutex_ptr_rtable);
+}
+int rclose(int sockfd)
+{
+
+    pthread_kill(R, SIGHUP);
+    pthread_kill(S, SIGHUP);
+    free(unack_table);
+    free(recv_table);
+    int ret= close(sockfd);
+    // close should be after the threads are killed else they will try to access a closed filedescriptor 
+    // similarly free should be after the threads are killed
+    return ret;
 }
 void *run_thread_r(void *param)
 {
