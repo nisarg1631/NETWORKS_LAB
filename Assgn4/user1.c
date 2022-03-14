@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
 {
 
     char inp[52];
+    printf("Enter the string to be sent: \n");
     scanf("%50[^\n]", inp);
     struct sockaddr_in p1_addr, p2_addr;
     p1_addr.sin_family = AF_INET;
