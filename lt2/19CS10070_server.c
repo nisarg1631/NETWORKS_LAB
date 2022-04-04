@@ -97,7 +97,7 @@ void *connection_handler(void *new_socket)
                 if (i > y)
                     break;
             }
-            printf("%d bytes sent\n", num_send);
+            // printf("%d bytes sent\n", num_send);
             if (num_send == y - x + 1)
             {
                 pthread_mutex_lock(&print_mutex);
@@ -105,7 +105,7 @@ void *connection_handler(void *new_socket)
                 pthread_mutex_unlock(&print_mutex);
             }
             fclose(fp);
-            pthread_mutuex_unlock(&delete_mutex);
+            pthread_mutex_unlock(&delete_mutex);
         }
     }
     else
