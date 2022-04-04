@@ -13,6 +13,10 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 
 #define MAX_TTL 16
 #define MAX_PROBES 3
@@ -92,6 +96,40 @@ void compute_udp_checksum(struct iphdr *pIph, unsigned short *ipPayload) {
     udphdrp->check = ((unsigned short)sum == 0x0000) ? 0xFFFF : (unsigned short)sum;
 }
 
+void print_header(char recvbuffer[]) {
+    struct iphdr *recv_iphdr = (struct iphdr *)recvbuffer;
+    int hlen1 = (recv_iphdr->ihl) << 2;
+    struct icmphdr *recv_icmphdr = (struct icmphdr *)(recvbuffer + hlen1);
+    struct iphdr *send_iphdr =  (struct iphdr *)(recvbuffer + hlen1 + 8);
+    int hlen2 = (send_iphdr->ihl) << 2;
+    struct udphdr *send_udphdr = (struct udphdr *)(recvbuffer + hlen1 + hlen2 + 8);
+
+    struct in_addr origip, srcip;
+    origip.s_addr = send_iphdr->daddr;
+    srcip.s_addr = recv_iphdr->saddr;
+    printf("ICMP type: %d\n", recv_icmphdr->type);
+    // print all the above info
+    struct in_addr daddr, saddr;
+    daddr.s_addr = send_iphdr->daddr;
+    saddr.s_addr = send_iphdr->saddr;
+    printf("IP check: %d\n", send_iphdr->check);
+    printf("IP daddr: %s\n", inet_ntoa(daddr));
+    printf("IP frag_off: %d\n", send_iphdr->frag_off);
+    printf("IP id: %d\n", send_iphdr->id);
+    printf("IP ihl: %d\n", send_iphdr->ihl);
+    printf("IP protocol: %d\n", send_iphdr->protocol);
+    printf("IP saddr: %s\n", inet_ntoa(saddr));
+    printf("IP tos: %d\n", send_iphdr->tos);
+    printf("IP tot_len: %d\n", ntohs(send_iphdr->tot_len));
+    printf("IP ttl: %d\n", send_iphdr->ttl);
+    printf("IP version: %d\n", send_iphdr->version);
+    // printf("IP orig: %s\n", inet_ntoa(origip));
+    // printf("IP src1: %s\n", inet_ntoa(srcip));
+    // printf("IP src2: %s\n", inet_ntoa(src.sin_addr));
+    // printf("IP check: %d\n", send_iphdr->check);
+    // printf("UDP check: %d\n", send_udphdr->check);
+}
+
 signed main(int argc, char const *argv[]) {
     if(argc < 2) {
         printf("Please enter domain name as command line argument.\n");
@@ -105,16 +143,30 @@ signed main(int argc, char const *argv[]) {
         exit(0);
     }
 
-    struct in_addr *ip_address = addr_list[0];
+    struct in_addr *ip_address = addr_list[0], *self_ip_address = NULL;
     printf("IP: %s\n", inet_ntoa(*ip_address));
     struct sockaddr_in sin, din;
+
+    struct ifaddrs *ifaddr;
+    if(getifaddrs(&ifaddr) < 0) {
+        perror("Failed to get network interfaces.\n");
+        exit(0);
+    }
+    
+    for (struct ifaddrs *it = ifaddr; it != NULL; it = it->ifa_next) {
+        if(it->ifa_addr != NULL && it->ifa_addr->sa_family == AF_INET && (it->ifa_flags & IFF_RUNNING) && !(it->ifa_flags & IFF_LOOPBACK)) {
+            self_ip_address = (struct in_addr *)malloc(sizeof(struct in_addr));
+            *self_ip_address = ((struct sockaddr_in *)(it->ifa_addr))->sin_addr;
+            break;
+        }
+    }
 
     din.sin_family = AF_INET;
     din.sin_port = htons(32164);
     din.sin_addr = *ip_address;
     sin.sin_family = AF_INET;
     sin.sin_port = htons(20002);
-    sin.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_addr.s_addr = (self_ip_address == NULL) ? INADDR_ANY : self_ip_address->s_addr;
 
     int sock_udp;
     if((sock_udp = socket(AF_INET, SOCK_RAW, IPPROTO_UDP)) < 0) {
@@ -152,7 +204,7 @@ signed main(int argc, char const *argv[]) {
             // FILL IP HEADER
             ip_header->check = (uint16_t)0;
             ip_header->daddr = din.sin_addr.s_addr;
-            ip_header->frag_off = (uint16_t)64;
+            ip_header->frag_off = (uint16_t)0;
             ip_header->id = htons((uint16_t)54321);
             ip_header->ihl = 5;
             ip_header->protocol = IPPROTO_UDP;
@@ -207,7 +259,7 @@ signed main(int argc, char const *argv[]) {
                 }
                 clock_gettime(CLOCK_MONOTONIC, &en);
                 double timediff_ms = timespec_diff(&st, &en);
-
+                // print_header(recvbuffer);
 
                 struct iphdr *recv_iphdr = (struct iphdr *)recvbuffer;
                 int hlen1 = (recv_iphdr->ihl) << 2;
