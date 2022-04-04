@@ -60,10 +60,10 @@ int main(int argc, char const *argv[]) {
 
     char buf[MAX_BUFFER];
     strcpy(buf, argv[1]);
-    printf("%s\n%d\n", buf, strlen(buf)+1);
+    // printf("%s\n%d\n", buf, strlen(buf)+1);
     send(sockfd, buf, strlen(buf)+1, 0);
     strcpy(buf, argv[2]);
-    printf("%s\n%d\n", buf, strlen(buf)+1);
+    // printf("%s\n%d\n", buf, strlen(buf)+1);
     send(sockfd, buf, strlen(buf)+1, 0);
 
     if(!strcmp(argv[1], "getbytes")) {
@@ -72,7 +72,19 @@ int main(int argc, char const *argv[]) {
         y = atoi(argv[4]);
         send(sockfd, &x, 4, 0);
         send(sockfd, &y, 4, 0);
-        printf("%d %d\n", x, y);
+        // printf("%d %d\n", x, y);
+        int expectedlen = y - x + 1;
+        while(expectedlen > 0) {
+            char c;
+            int checker = recv(sockfd, &c, 1, 0);
+            if(checker <= 0) {
+                printf("\n error: could not receive specified bytes");
+                break;
+            }
+            printf("%c", c);
+            expectedlen--;
+        }
+        printf("\n");
     } else {
         int recvlen = 0;
         recvNullTerm(sockfd, buf, &recvlen);

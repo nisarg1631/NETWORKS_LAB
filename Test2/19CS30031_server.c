@@ -33,24 +33,56 @@ void *consumer(void *param) {
     char command[MAX_BUF];
     int commandlen = 0;
     recvNullTerm(*sockfd, command, &commandlen);
-    printf("%s\n%d\n", command, commandlen);
+    // printf("%s\n%d\n", command, commandlen);
     char filename[MAX_BUF];
     int filenamelen = 0;
     recvNullTerm(*sockfd, filename, &filenamelen);
-    printf("%s\n%d\n", filename, filenamelen);
+    // printf("%s\n%d\n", filename, filenamelen);
     if(!strcmp(command, "del")) {
-        printf("Delete comm\n");
+        // printf("Delete comm\n");
         if(remove(filename) == 0) {
             char buf[MAX_BUF];
             sprintf(buf, "delete success");
             send(*sockfd, buf, strlen(buf)+1, 0);
         }
     } else {
-        printf("Access comm\n");
+        // printf("Access comm\n");
         int x, y;
         recvInt(*sockfd, &x);
         recvInt(*sockfd, &y);
-        printf("%d %d\n", x, y);
+        // printf("%d %d\n", x, y);
+        FILE *myfile = fopen(filename, "r");
+        int readlen = y - x + 1;
+        int err = 0;
+        int xorig = x;
+        if(!myfile) {
+            err = 1;
+        }
+        if(!err) {
+            while(x > 0) {
+                int tempc = fgetc(myfile);
+                if(tempc == EOF) {
+                    err = 1;
+                    break;
+                }
+                x--;
+            }
+        }
+        if(!err) {
+            while(readlen > 0) {
+                int tempc = fgetc(myfile);
+                if(tempc == EOF) {
+                    err = 1;
+                    break;
+                }
+                char tempcc = (char)tempc;
+                send(*sockfd, &tempc, 1, 0);
+                readlen--;
+            }
+        }
+        if(!err) {
+            printf("byte %d to byte %d of file %s sent\n", xorig, y, filename);
+        }
     }
     close(*sockfd);
     pthread_exit(0);
