@@ -40,6 +40,11 @@ void *consumer(void *param) {
     printf("%s\n%d\n", filename, filenamelen);
     if(!strcmp(command, "del")) {
         printf("Delete comm\n");
+        if(remove(filename) == 0) {
+            char buf[MAX_BUF];
+            sprintf(buf, "delete success");
+            send(*sockfd, buf, strlen(buf)+1, 0);
+        }
     } else {
         printf("Access comm\n");
         int x, y;

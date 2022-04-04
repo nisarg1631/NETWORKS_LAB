@@ -15,6 +15,16 @@
 
 #define MAX_BUFFER 1000
 
+void recvNullTerm(int sockfd, char buf[], int *len) {
+    *len = 0;
+    char temp;
+    while(recv(sockfd, &temp, 1, MSG_WAITALL) > 0) {
+        buf[(*len)++] = temp;
+        if(temp == '\0')
+            break;
+    }
+}
+
 int main(int argc, char const *argv[]) {
 
     // check for command line argument
@@ -64,7 +74,13 @@ int main(int argc, char const *argv[]) {
         send(sockfd, &y, 4, 0);
         printf("%d %d\n", x, y);
     } else {
-        
+        int recvlen = 0;
+        recvNullTerm(sockfd, buf, &recvlen);
+        if(recvlen) {
+            printf("%s\n", buf);
+        } else {
+            printf("error: delete failed\n");
+        }
     }
 
     close(sockfd);
